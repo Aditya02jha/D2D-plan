@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D2D — Exhaustive Family Intake & Auto-Generated Nutrition Report</title>
+<style>
+  :root {
+    --primary: #1a5d3a; --primary-light: #e8f5e9; --primary-dark: #0d3d24;
+    --accent: #c62828; --accent-light: #ffebee; --warning: #f9a825; --warning-bg: #fffde7;
+    --info: #1565c0; --info-bg: #e3f2fd; --success: #2e7d32; --success-bg: #e8f5e9;
+    --text: #212121; --text-secondary: #616161; --border: #e0e0e0; --bg: #f5f5f5; --white: #ffffff;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; background: var(--white); min-height: 100vh; }
+  .header { background: var(--primary); color: var(--white); padding: 32px 24px; text-align: center; }
+  .header h1 { font-size: 1.5rem; font-weight: 600; } .header p { margin-top: 6px; opacity: 0.9; }
+  .header .tagline { display: inline-block; margin-top: 10px; padding: 4px 16px; background: rgba(255,255,255,0.15); border-radius: 20px; font-size: 0.82rem; }
+  .form-body { padding: 24px; }
+  .section { margin-bottom: 24px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .section-header { background: var(--primary-light); padding: 12px 18px; font-weight: 600; color: var(--primary); font-size: 1rem; display: flex; align-items: center; gap: 10px; }
+  .section-header .num { background: var(--primary); color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; }
+  .section-body { padding: 18px; }
+  .row { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 14px; }
+  .field { flex: 1; min-width: 200px; } .field.full { flex: 0 0 100%; } .field.half { flex: 1 1 calc(50% - 14px); } .field.third { flex: 1 1 calc(33.333% - 14px); } .field.quarter { flex: 1 1 calc(25% - 14px); }
+  label { display: block; font-weight: 500; font-size: 0.85rem; margin-bottom: 5px; color: var(--text); }
+  .hint { font-size: 0.74rem; color: var(--text-secondary); margin-top: 3px; font-style: italic; }
+  input, select, textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.88rem; font-family: inherit; transition: border-color 0.2s; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26,93,58,0.1); }
+  input.error, select.error, textarea.error { border-color: var(--accent); background: var(--accent-light); }
+  textarea { resize: vertical; min-height: 56px; }
+  .checkbox-group, .radio-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px; }
+  .checkbox-group label, .radio-group label { display: flex; align-items: center; gap: 6px; font-weight: 400; font-size: 0.85rem; cursor: pointer; padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--white); }
+  .checkbox-group label:hover, .radio-group label:hover { border-color: var(--primary); background: var(--primary-light); }
+  input[type="checkbox"], input[type="radio"] { width: 15px; height: 15px; accent-color: var(--primary); }
+  .conditional { margin-top: 10px; padding: 14px; background: var(--warning-bg); border-left: 4px solid var(--warning); border-radius: 0 6px 6px 0; display: none; }
+  .conditional.active { display: block; }
+  .alert-box { background: var(--info-bg); border-left: 4px solid var(--info); padding: 12px 14px; border-radius: 0 6px 6px 0; margin-bottom: 16px; font-size: 0.84rem; }
+  .alert-box strong { color: var(--info); }
+  .divider { height: 1px; background: var(--border); margin: 18px 0; }
+  .member-block { background: #f8f9fa; border: 2px solid var(--primary); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+  .member-title { font-weight: 700; color: var(--primary); margin-bottom: 16px; font-size: 1.05rem; padding-bottom: 10px; border-bottom: 2px solid var(--primary-light); }
+  .submit-bar { position: sticky; bottom: 0; background: var(--white); border-top: 2px solid var(--primary); padding: 16px 24px; display: flex; justify-content: center; gap: 16px; z-index: 100; }
+  .btn-primary { background: var(--primary); color: white; border: none; padding: 12px 36px; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-secondary { background: var(--white); color: var(--primary); border: 2px solid var(--primary); padding: 10px 24px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+  .table-audit { width: 100%; border-collapse: collapse; font-size: 0.84rem; margin-top: 8px; }
+  .table-audit th, .table-audit td { border: 1px solid var(--border); padding: 8px; text-align: left; }
+  .table-audit th { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+  .total-row { background: #fff3e0; font-weight: 600; }
+
+  /* RESULTS */
+  #resultsDashboard { display: none; padding: 24px; background: var(--bg); min-height: 100vh; }
+  .dash-header { background: var(--primary); color: white; padding: 28px 24px; text-align: center; border-radius: var(--radius); margin-bottom: 20px; }
+  .dash-header h2 { font-size: 1.4rem; font-weight: 600; }
+  .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .dash-card { background: var(--white); border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .dash-card h3 { font-size: 0.95rem; color: var(--primary); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--primary-light); }
+  .metric-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+  .metric-row:last-child { border-bottom: none; }
+  .metric-label { font-size: 0.84rem; color: var(--text-secondary); }
+  .metric-value { font-size: 0.9rem; font-weight: 600; color: var(--text); }
+  .metric-value.good { color: var(--success); } .metric-value.warn { color: var(--warning); } .metric-value.danger { color: var(--accent); }
+  .score-bar { height: 8px; border-radius: 4px; background: #e0e0e0; margin: 6px 0; overflow: hidden; }
+  .score-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+  .score-bar-fill.good { background: var(--success); } .score-bar-fill.warn { background: var(--warning); } .score-bar-fill.danger { background: var(--accent); }
+  .outcome-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; margin: 2px; }
+  .outcome-safe { background: var(--success-bg); color: var(--success); border: 1px solid #c8e6c9; }
+  .outcome-atrisk { background: var(--warning-bg); color: #e65100; border: 1px solid #ffe082; }
+  .outcome-danger { background: var(--accent-light); color: var(--accent); border: 1px solid #ffcdd2; }
+  .meal-card { background: #fafafa; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 10px; }
+  .meal-card h4 { color: var(--primary); font-size: 0.9rem; margin-bottom: 8px; }
+  .meal-item { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.84rem; border-bottom: 1px dashed #eee; }
+  .meal-item:last-child { border-bottom: none; }
+  .prescription-box { background: var(--primary-light); border: 2px solid var(--primary); border-radius: var(--radius); padding: 20px; margin-top: 16px; }
+  .prescription-box h3 { color: var(--primary); font-size: 1rem; margin-bottom: 14px; }
+  .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .rx-item { background: var(--white); padding: 10px; border-radius: 6px; border-left: 3px solid var(--primary); }
+  .rx-item .rx-title { font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+  .rx-item .rx-val { font-size: 0.95rem; font-weight: 600; color: var(--text); }
+  .family-basket-box { background: var(--white); border: 2px solid var(--warning); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
+  .family-basket-box h3 { color: #e65100; font-size: 1.05rem; margin-bottom: 14px; }
+  .basket-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .basket-item { background: var(--warning-bg); padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
+  .basket-item .qty { font-weight: 600; color: #e65100; }
+  .print-btn { position: fixed; bottom: 24px; right: 24px; background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 50px; font-size: 0.9rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 200; }
+  .back-btn { background: var(--white); color: var(--primary); border: 2px solid var(--primary); padding: 10px 24px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; margin-bottom: 16px; }
+  .family-summary-bar { background: var(--white); border-radius: var(--radius); padding: 16px 20px; border: 1px solid var(--border); margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .family-summary-bar h4 { color: var(--primary); font-size: 0.9rem; margin-right: 8px; }
+  .member-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 500; }
+  .member-pill.healthy { background: var(--success-bg); color: var(--success); border: 1px solid #c8e6c9; }
+  .member-pill.atrisk { background: var(--warning-bg); color: #e65100; border: 1px solid #ffe082; }
+  .member-pill.diseased { background: var(--accent-light); color: var(--accent); border: 1px solid #ffcdd2; }
+  .micro-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+  .micro-item { background: var(--white); padding: 8px; border-radius: 6px; border: 1px solid var(--border); text-align: center; }
+  .micro-item .micro-name { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; }
+  .micro-item .micro-val { font-size: 1rem; font-weight: 600; color: var(--primary); margin-top: 2px; }
+  .micro-item .micro-source { font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; font-style: italic; }
+
+  @media (max-width: 640px) {
+    .field.half, .field.third, .field.quarter { flex: 0 0 100%; }
+    .form-body { padding: 16px; }
+    .dash-grid { grid-template-columns: 1fr; }
+    .rx-grid { grid-template-columns: 1fr; }
+    .basket-grid { grid-template-columns: 1fr; }
+    .submit-bar { flex-direction: column; padding: 12px 16px; }
+    .btn-primary, .btn-secondary { width: 100%; }
+  }
+  @media print {
+    body { background: white; }
+    .submit-bar, .back-btn, .print-btn { display: none !important; }
+    #questionnaireForm { display: none !important; }
+    #resultsDashboard { display: block !important; }
+    .dash-card { break-inside: avoid; }
+    .member-block { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div id="questionnaireForm">
+  <div class="container">
+    <div class="header">
+      <h1>DEFICIENCY TO DIET PROTOCOL</h1>
+      <p>Exhaustive Family Intake & Auto-Generated Nutrition Report</p>
+      <div class="tagline">Scientific • Personalized • Root-Cause Based</div>
+    </div>
+
+    <div class="form-body">
+
+      <!-- SECTION 1: FAMILY COMMON -->
+      <div class="section">
+        <div class="section-header"><span class="num">1</span> Family Common Information</div>
+        <div class="section-body">
+          <div class="alert-box">
+            <strong>How D2D plans:</strong> We first understand your family as a unit — who cooks, what oil you use, your budget — then we design a <em>common basket</em> that feeds everyone. Individual adjustments come next.
+          </div>
+          <div class="row">
+            <div class="field half">
+              <label>Family Name / Head of Household</label>
+              <input type="text" id="familyName" placeholder="e.g., Sharma Family">
+            </div>
+            <div class="field half">
+              <label>Contact Number</label>
+              <input type="tel" id="contactNumber" placeholder="10-digit mobile">
+            </div>
+          </div>
+          <div class="row">
+            <div class="field full">
+              <label>Complete Address</label>
+              <textarea id="address" placeholder="Area, Landmark, City, Pincode"></textarea>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field third">
+              <label>How many members eat from this kitchen daily</label>
+              <select id="totalMembers" onchange="generateMembers()">
+                <option value="">Select</option>
+                <option value="1">1 person</option>
+                <option value="2">2 people</option>
+                <option value="3">3 people</option>
+                <option value="4">4 people</option>
+                <option value="5">5 people</option>
+                <option value="6">6 people</option>
+                <option value="7">7 people</option>
+                <option value="8">8+ people</option>
+              </select>
+            </div>
+            <div class="field third">
+              <label>Who is the primary cook</label>
+              <select id="primaryCook">
+                <option value="">Select</option>
+                <option>Self</option>
+                <option>Spouse</option>
+                <option>Mother</option>
+                <option>Father</option>
+                <option>Daughter</option>
+                <option>Daughter-in-law</option>
+                <option>Son</option>
+                <option>Maid / Cook</option>
+              </select>
+            </div>
+            <div class="field third">
+              <label>Who decides what food to buy</label>
+              <select id="decisionMaker">
+                <option value="">Select</option>
+                <option>Self</option>
+                <option>Spouse</option>
+                <option>Mother</option>
+                <option>Father</option>
+                <option>Joint decision</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field third">
+              <label>Current cooking oil</label>
+              <select id="currentOil">
+                <option value="">Select</option>
+                <option value="mustard">Mustard oil (cold-pressed)</option>
+                <option value="refined">Refined oil (soya/sunflower)</option>
+                <option value="vanaspati">Vanaspati / Dalda</option>
+                <option value="coconut">Coconut oil</option>
+                <option value="mix">Mix of oils</option>
+                <option value="dontknow">Don't know</option>
+              </select>
+              <div class="hint">Vanaspati = hidden trans fat. Mustard = D2D recommended.</div>
+            </div>
+            <div class="field third">
+              <label>Current atta (flour) source</label>
+              <select id="currentAtta">
+                <option value="">Select</option>
+                <option value="chakki">Local chakki (whole wheat)</option>
+                <option value="branded">Branded (Pillsbury, Aashirvaad)</option>
+                <option value="multigrain">Multigrain mix</option>
+                <option value="refined">Refined / Maida mix</option>
+                <option value="dontknow">Don't know</option>
+              </select>
+            </div>
+            <div class="field third">
+              <label>Current rice type</label>
+              <select id="currentRice">
+                <option value="">Select</option>
+                <option value="polished">Polished white rice</option>
+                <option value="parboiled">Parboiled / Sona Masoori</option>
+                <option value="basmati">Basmati</option>
+                <option value="brown">Brown rice</option>
+                <option value="dontknow">Don't know</option>
+              </select>
+              <div class="hint">Polished rice = low fiber + high glucose spike.</div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field third">
+              <label>How many times per week does family eat outside / order food</label>
+              <select id="outsideFood">
+                <option value="">Select</option>
+                <option value="0">Never</option>
+                <option value="1">1 time</option>
+                <option value="2-3">2–3 times</option>
+                <option value="4+">4+ times</option>
+                <option value="daily">Daily (tiffin / canteen)</option>
+              </select>
+            </div>
+            <div class="field third">
+              <label>Does any member smoke or use tobacco</label>
+              <select id="tobaccoUse">
+                <option value="">Select</option>
+                <option value="none">No one</option>
+                <option value="father">Father</option>
+                <option value="mother">Mother</option>
+                <option value="son">Son</option>
+                <option value="daughter">Daughter</option>
+                <option value="multiple">Multiple members</option>
+              </select>
+            </div>
+            <div class="field third">
+              <label>Approximate monthly kitchen + medical expense</label>
+              <input type="text" id="monthlyExpense" placeholder="e.g., ₹12,000">
+            </div>
+          </div>
+          <div class="row">
+            <div class="field half">
+              <label>Is the family ready for a 6-month protocol</label>
+              <select id="protocolCommitment">
+                <option value="">Select</option>
+                <option>Yes, all adults committed</option>
+                <option>Yes, some members only</option>
+                <option>3-month trial first</option>
+                <option>Undecided</option>
+              </select>
+            </div>
+            <div class="field half">
+              <label>Will adults get blood test done (or share recent report)</label>
+              <select id="bloodTestWilling">
+                <option value="">Select</option>
+                <option>Yes, have recent report</option>
+                <option>Yes, will get new test</option>
+                <option>No, not now</option>
+              </select>
+              <div class="hint">No report = we use symptom-based At-Risk protocol.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DYNAMIC MEMBER SECTIONS -->
+      <div id="memberSections"></div>
+
+      <div class="submit-bar">
+        <button type="button" class="btn-secondary" onclick="window.print()">Print Blank Form</button>
+        <button type="button" class="btn-primary" onclick="submitForm()">Submit & Generate D2D Plan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== RESULTS DASHBOARD ========== -->
+<div id="resultsDashboard">
+  <div class="container" style="background: var(--bg); max-width: 1100px;">
+    <div class="dash-header">
+      <h2>Your D2D Clinical Assessment & Family Basket</h2>
+      <p id="dashFamilyName">Family Name</p>
+    </div>
+
+    <button class="back-btn" onclick="goBack()">← Back to Questionnaire</button>
+
+    <!-- Family Summary Bar -->
+    <div class="family-summary-bar">
+      <h4>Family Status:</h4>
+      <div id="familyPills"></div>
+    </div>
+
+    <!-- FAMILY COMMON BASKET -->
+    <div class="family-basket-box">
+      <h3>🧺 Family Common Basket (Monthly)</h3>
+      <div id="familyBasketContent"></div>
+    </div>
+
+    <!-- INDIVIDUAL DASHBOARDS -->
+    <div id="memberDashboards"></div>
+
+    <button class="print-btn" onclick="window.print()">🖨 Print Full Report</button>
+  </div>
+</div>
+<script>
+// ===== DYNAMIC MEMBER GENERATION =====
+function generateMembers() {
+  const count = parseInt(document.getElementById('totalMembers').value) || 0;
+  const container = document.getElementById('memberSections');
+  container.innerHTML = '';
+  if (count === 0) return;
+  for (let i = 0; i < count; i++) {
+    container.innerHTML += buildMemberSection(i);
+  }
+}
+
+function buildMemberSection(idx) {
+  const m = `m${idx}_`;
+  const num = idx + 1;
+  const relations = ['Self','Spouse','Son','Daughter','Father','Mother','Grandfather','Grandmother','Other'];
+  // ... [same template as before but as JS string] ...
+  // I'll use a simplified version here for the JS function
+  return `
+    <div class="section" id="memberSection${idx}">
+      <div class="section-header"><span class="num">${num + 1}</span> Member ${num} — Complete Health Profile</div>
+      <div class="section-body">
+        <div class="member-block">
+          <div class="member-title">Member ${num}</div>
+          <div class="row">
+            <div class="field third"><label>Full Name</label><input type="text" id="${m}name" placeholder="Name"></div>
+            <div class="field third"><label>Relation to Head</label><select id="${m}relation"><option value="">Select</option>${relations.map(r => `<option>${r}</option>`).join('')}</select></div>
+            <div class="field third"><label>Gender</label><select id="${m}gender"><option value="">Select</option><option value="male">Male</option><option value="female">Female</option></select></div>
+          </div>
+          <div class="row">
+            <div class="field quarter"><label>Age (years)</label><input type="number" id="${m}age" min="1" max="100" placeholder="e.g., 45"></div>
+            <div class="field quarter"><label>Height (cm)</label><input type="number" id="${m}height" min="50" max="250" placeholder="e.g., 165"></div>
+            <div class="field quarter"><label>Weight (kg)</label><input type="number" id="${m}weight" min="5" max="200" placeholder="e.g., 72"></div>
+            <div class="field quarter"><label>Waist at navel (cm)</label><input type="number" id="${m}waist" min="30" max="200" placeholder="e.g., 88"></div>
+          </div>
+          <div class="row">
+            <div class="field third"><label>Hip circumference (cm) — women only</label><input type="number" id="${m}hip" min="30" max="200" placeholder="e.g., 98"></div>
+            <div class="field third"><label>Neck circumference (cm)</label><input type="number" id="${m}neck" min="20" max="80" placeholder="e.g., 38"></div>
+            <div class="field third"><label>Wrist circumference (cm)</label><input type="number" id="${m}wrist" min="10" max="30" placeholder="e.g., 16"></div>
+          </div>
+          <div class="divider"></div>
+          <div class="row">
+            <div class="field half"><label>Occupation / Daily Activity Level</label><select id="${m}activity"><option value="">Select</option><option value="sedentary">Sedentary (office, desk job)</option><option value="standing">Standing work (shop, teacher)</option><option value="housework">Housework (full-time homemaker)</option><option value="labor">Physical labor (construction, driver, farmer)</option><option value="student">Student</option><option value="retired">Retired / Limited mobility</option><option value="notworking">Not working</option></select></div>
+            <div class="field half"><label>Work / Sleep Timing</label><select id="${m}shift"><option value="day">Day routine (sleep 10 PM – 6 AM)</option><option value="night">Night shift worker</option><option value="irregular">Irregular hours (business, travel)</option></select></div>
+          </div>
+          <div class="row">
+            <div class="field third"><label>Do you go to gym / exercise regularly</label><select id="${m}gym"><option value="">Select</option><option value="none">No exercise at all</option><option value="walk">Daily walk only</option><option value="light">Light exercise 2-3x/week</option><option value="moderate">Moderate exercise 4-5x/week</option><option value="heavy">Heavy gym / sports daily</option></select></div>
+            <div class="field third"><label>Sleep Duration (hours per night)</label><input type="number" id="${m}sleep" min="0" max="24" placeholder="e.g., 6"></div>
+            <div class="field third"><label>Sleep Quality</label><select id="${m}sleepQuality"><option value="">Select</option><option value="good">Good — fall asleep fast, wake refreshed</option><option value="fair">Fair — takes time, sometimes wake up</option><option value="poor">Poor — insomnia, frequent waking, snoring</option><option value="verypoor">Very poor — sleep apnea, need pills</option></select></div>
+          </div>
+          <div class="row">
+            <div class="field third"><label>Usual Sleep Time</label><input type="text" id="${m}sleepTime" placeholder="e.g., 11:00 PM"></div>
+            <div class="field third"><label>Usual Wake Time</label><input type="text" id="${m}wakeTime" placeholder="e.g., 6:00 AM"></div>
+            <div class="field third"><label>Stress Level (last 3 months)</label><select id="${m}stress"><option value="">Select</option><option value="low">Low — peaceful life</option><option value="moderate">Moderate — work pressure, manageable</option><option value="high">High — constant tension, financial/work/family</option><option value="severe">Severe — anxiety, burnout, depression</option></select></div>
+          </div>
+          <div class="divider"></div>
+          <div class="row">
+            <div class="field full"><label>Any diagnosed disease (check all that apply)</label><div class="checkbox-group" id="${m}diseases"><label><input type="checkbox" value="diabetes"> Diabetes</label><label><input type="checkbox" value="bp"> High Blood Pressure</label><label><input type="checkbox" value="thyroid"> Thyroid disorder</label><label><input type="checkbox" value="heart"> Heart disease / Angina</label><label><input type="checkbox" value="kidney"> Kidney disease / Stones</label><label><input type="checkbox" value="liver"> Fatty Liver / Hepatitis</label><label><input type="checkbox" value="asthma"> Asthma / COPD</label><label><input type="checkbox" value="arthritis"> Arthritis / Joint issues</label><label><input type="checkbox" value="pcos"> PCOS / Irregular periods</label><label><input type="checkbox" value="cancer"> Cancer (current or past)</label><label><input type="checkbox" value="osteoporosis"> Osteoporosis / Bone loss</label><label><input type="checkbox" value="anemia"> Chronic Anemia</label><label><input type="checkbox" value="gout"> Gout / High Uric Acid</label><label><input type="checkbox" value="none"> None</label></div></div>
+          </div>
+          <div class="row">
+            <div class="field half"><label>Current Medications (name and dose if known)</label><textarea id="${m}meds" placeholder="e.g., Metformin 500mg morning, Thyronorm 50mcg, Telma-H, Atorvastatin 10mg"></textarea></div>
+            <div class="field half"><label>Known Food Allergies / Intolerances</label><textarea id="${m}allergies" placeholder="e.g., Peanut, Gluten, Dairy, Soy, Lentils, Shellfish"></textarea></div>
+          </div>
+          <div class="row">
+            <div class="field half"><label>Family History of Disease (parents / siblings)</label><textarea id="${m}familyHx" placeholder="e.g., Father: diabetes + heart attack at 55. Mother: high BP + thyroid. Sister: PCOS."></textarea></div>
+            <div class="field half"><label>Any surgery / hospitalization in last 2 years</label><textarea id="${m}surgery" placeholder="e.g., Gall bladder removal 2024. Knee replacement 2023."></textarea></div>
+          </div>
+          <div class="divider"></div>
+          <div class="alert-box"><strong>Blood Report Section:</strong> If you have a recent report, enter values below. If not, leave blank — D2D will estimate from symptoms and body metrics.</div>
+          <div class="row">
+            <div class="field quarter"><label>Hb (g/dL)</label><input type="text" id="${m}blood_hb" placeholder="e.g., 11.5"></div>
+            <div class="field quarter"><label>Fasting Glucose (mg/dL)</label><input type="text" id="${m}blood_glucose" placeholder="e.g., 110"></div>
+            <div class="field quarter"><label>HbA1c (%)</label><input type="text" id="${m}blood_hba1c" placeholder="e.g., 6.8"></div>
+            <div class="field quarter"><label>Total Cholesterol (mg/dL)</label><input type="text" id="${m}blood_chol" placeholder="e.g., 220"></div>
+          </div>
+          <div class="row">
+            <div class="field quarter"><label>LDL (mg/dL)</label><input type="text" id="${m}blood_ldl" placeholder="e.g., 140"></div>
+            <div class="field quarter"><label>HDL (mg/dL)</label><input type="text" id="${m}blood_hdl" placeholder="e.g., 38"></div>
+            <div class="field quarter"><label>Triglycerides (mg/dL)</label><input type="text" id="${m}blood_tg" placeholder="e.g., 180"></div>
+            <div class="field quarter"><label>TSH (uIU/mL)</label><input type="text" id="${m}blood_tsh" placeholder="e.g., 4.5"></div>
+          </div>
+          <div class="row">
+            <div class="field quarter"><label>SGPT / ALT (U/L)</label><input type="text" id="${m}blood_sgpt" placeholder="e.g., 45"></div>
+            <div class="field quarter"><label>SGOT / AST (U/L)</label><input type="text" id="${m}blood_sgot" placeholder="e.g., 35"></div>
+            <div class="field quarter"><label>Bilirubin (mg/dL)</label><input type="text" id="${m}blood_bili" placeholder="e.g., 1.0"></div>
+            <div class="field quarter"><label>Creatinine (mg/dL)</label><input type="text" id="${m}blood_creat" placeholder="e.g., 1.1"></div>
+          </div>
+          <div class="row">
+            <div class="field quarter"><label>Uric Acid (mg/dL)</label><input type="text" id="${m}blood_uric" placeholder="e.g., 7.2"></div>
+            <div class="field quarter"><label>Vitamin B12 (pg/mL)</label><input type="text" id="${m}blood_b12" placeholder="e.g., 180"></div>
+            <div class="field quarter"><label>Vitamin D (ng/mL)</label><input type="text" id="${m}blood_vitd" placeholder="e.g., 15"></div>
+            <div class="field quarter"><label>Iron / Ferritin (ng/mL)</label><input type="text" id="${m}blood_iron" placeholder="e.g., 25"></div>
+          </div>
+          <div class="row">
+            <div class="field quarter"><label>Calcium (mg/dL)</label><input type="text" id="${m}blood_calcium" placeholder="e.g., 9.0"></div>
+            <div class="field quarter"><label>Sodium (mEq/L)</label><input type="text" id="${m}blood_sodium" placeholder="e.g., 140"></div>
+            <div class="field quarter"><label>Potassium (mEq/L)</label><input type="text" id="${m}blood_potassium" placeholder="e.g., 4.2"></div>
+            <div class="field quarter"><label>CRP / ESR (inflammation)</label><input type="text" id="${m}blood_crp" placeholder="e.g., 3.5"></div>
+          </div>
+          <div class="divider"></div>
+          <div class="row">
+            <div class="field full"><label>Pregnancy / Lactation / Menstrual Status (for women only)</label><div class="radio-group"><label><input type="radio" name="${m}womenhealth" value="na" checked> Not applicable (male / post-menopausal)</label><label><input type="radio" name="${m}womenhealth" value="p1"> Pregnant — 1st trimester</label><label><input type="radio" name="${m}womenhealth" value="p2"> Pregnant — 2nd trimester</label><label><input type="radio" name="${m}womenhealth" value="p3"> Pregnant — 3rd trimester</label><label><input type="radio" name="${m}womenhealth" value="l1"> Lactating (0–6 months)</label><label><input type="radio" name="${m}womenhealth" value="l2"> Lactating (6–12 months)</label><label><input type="radio" name="${m}womenhealth" value="menstrual"> Menstruating regularly</label><label><input type="radio" name="${m}womenhealth" value="irregular"> Irregular periods / PCOS</label><label><input type="radio" name="${m}womenhealth" value="menopause"> Menopause (1+ year no period)</label></div></div>
+          </div>
+          <div class="divider"></div>
+          <div class="row">
+            <div class="field third"><label>Breakfast Time</label><input type="text" id="${m}bfastTime" placeholder="e.g., 8:00 AM"></div>
+            <div class="field third"><label>Lunch Time</label><input type="text" id="${m}lunchTime" placeholder="e.g., 1:30 PM"></div>
+            <div class="field third"><label>Dinner Time</label><input type="text" id="${m}dinnerTime" placeholder="e.g., 9:00 PM"><div class="hint">After 8 PM = circadian disruption risk.</div></div>
+          </div>
+          <div class="row">
+            <div class="field third"><label>What do you eat for breakfast</label><input type="text" id="${m}bfastWhat" placeholder="e.g., Paratha + tea, or Nothing"></div>
+            <div class="field third"><label>Meals per day</label><select id="${m}meals"><option value="">Select</option><option>2</option><option>3</option><option>4 or more</option><option>Irregular</option></select></div>
+            <div class="field third"><label>Do you eat after dinner</label><select id="${m}lateEating"><option value="">Select</option><option>No</option><option>Tea / Milk only</option><option>Snacks / Biscuits</option><option>Fruit</option><option>Full second meal</option></select></div>
+          </div>
+          <div class="row">
+            <div class="field half"><label>Non-Vegetarian Foods Eaten (check all)</label><div class="checkbox-group"><label><input type="checkbox" id="${m}nv_egg"> Egg</label><label><input type="checkbox" id="${m}nv_chicken"> Chicken</label><label><input type="checkbox" id="${m}nv_fish"> Fish</label><label><input type="checkbox" id="${m}nv_mutton"> Mutton</label><label><input type="checkbox" id="${m}nv_none"> None (Vegetarian)</label></div></div>
+            <div class="field half"><label>Dairy Products Consumed (check all)</label><div class="checkbox-group"><label><input type="checkbox" id="${m}d_milk"> Milk</label><label><input type="checkbox" id="${m}d_curd"> Curd / Buttermilk</label><label><input type="checkbox" id="${m}d_paneer"> Paneer</label><label><input type="checkbox" id="${m}d_ghee"> Ghee</label><label><input type="checkbox" id="${m}d_none"> None / Lactose intolerant</label></div></div>
+          </div>
+          <div class="row">
+            <div class="field full"><label>Food Dislikes / Intolerances / Digestive Issues</label><textarea id="${m}dislikes" placeholder="e.g., Cannot eat karela. Channa dal causes gas. Spicy food triggers acidity. Cannot digest milk."></textarea></div>
+          </div>
+          <div class="divider"></div>
+          <h4 style="color: var(--primary); margin-bottom: 10px; font-size: 0.95rem;">Daily Added Sugar Intake (be honest — we replace, not judge)</h4>
+          <table class="table-audit">
+            <thead><tr><th style="width:28%">Source</th><th style="width:26%">Quantity per day</th><th style="width:18%">Sugar in grams</th><th style="width:28%">D2D Replacement</th></tr></thead>
+            <tbody>
+              <tr><td>Tea / Coffee with sugar</td><td><input type="text" id="${m}sugar_tea_qty" placeholder="4 cups × 2 tsp"></td><td><input type="number" id="${m}sugar_tea_g" placeholder="40" onchange="calcMemberSugar(${idx})"></td><td><input type="text" placeholder="Stevia / ½ tsp jaggery"></td></tr>
+              <tr><td>Biscuits (Parle-G, Marie, etc.)</td><td><input type="text" id="${m}sugar_bisc_qty" placeholder="2 packets"></td><td><input type="number" id="${m}sugar_bisc_g" placeholder="20" onchange="calcMemberSugar(${idx})"></td><td><input type="text" placeholder="D2D chana jor / peanut chikki"></td></tr>
+              <tr><td>Soft drinks / Packaged juices</td><td><input type="text" id="${m}sugar_soft_qty" placeholder="1 can"></td><td><input type="number" id="${m}sugar_soft_g" placeholder="39" onchange="calcMemberSugar(${idx})"></td><td><input type="text" placeholder="D2D nimbu pani + black salt"></td></tr>
+              <tr><td>Mithai / Chocolate / Ice cream</td><td><input type="text" id="${m}sugar_mithai_qty" placeholder="1 piece"></td><td><input type="number" id="${m}sugar_mithai_g" placeholder="25" onchange="calcMemberSugar(${idx})"></td><td><input type="text" placeholder="D2D jaggery laddu (weekend)"></td></tr>
+              <tr><td>Breakfast cereal / Health drinks</td><td><input type="text" id="${m}sugar_cereal_qty" placeholder="1 bowl"></td><td><input type="number" id="${m}sugar_cereal_g" placeholder="15" onchange="calcMemberSugar(${idx})"></td><td><input type="text" placeholder="D2D ragi porridge + milk"></td></tr>
+              <tr><td>Ketchup / Jam / Sweetened curd</td><td><input type="text" id="${m}sugar_ketchup_qty" placeholder="2 tbsp"></td><td><input type="number" id="${m}sugar_ketchup_g" placeholder="10" onchange="calcMemberSugar(${idx})"></td><td><input type="text" placeholder="Homemade tomato chutney"></td></tr>
+              <tr class="total-row"><td colspan="2"><strong>TOTAL ADDED SUGAR PER DAY</strong></td><td><input type="number" id="${m}sugar_total" placeholder="149" readonly></td><td><strong>WHO Safe Limit: under 25g</strong></td></tr>
+            </tbody>
+          </table>
+          <div class="divider"></div>
+          <div class="row">
+            <div class="field third"><label>Do you drink alcohol</label><select id="${m}alcohol" onchange="toggleMemberAlcohol(${idx})"><option value="no">No</option><option value="yes">Yes</option><option value="occasional">Occasional (festivals only)</option></select></div>
+            <div class="field third"><label>Do you smoke / chew tobacco</label><select id="${m}smoke"><option value="no">No</option><option value="cigarette">Cigarettes</option><option value="beedi">Beedi</option><option value="gutka">Gutka / Pan masala</option><option value="hookah">Hookah</option></select></div>
+            <div class="field third"><label>Caffeine intake (cups per day)</label><input type="number" id="${m}caffeine" min="0" max="20" placeholder="e.g., 4"></div>
+          </div>
+          <div id="${m}alcDetail" class="conditional">
+            <div class="row">
+              <div class="field third"><label>Type</label><select id="${m}alc_type"><option>Beer</option><option>Whiskey / Rum / Vodka</option><option>Wine</option><option>Desi (Taadi / Mahua)</option></select></div>
+              <div class="field third"><label>How often</label><select id="${m}alc_freq"><option>Daily</option><option>3–4 times per week</option><option>Weekends only</option><option>Once in a while</option></select></div>
+              <div class="field third"><label>Quantity per sitting</label><input type="text" id="${m}alc_qty" placeholder="e.g., 3 pegs / 2 beers"></div>
+            </div>
+            <div class="row">
+              <div class="field third"><label>Mixer used</label><select id="${m}alc_mixer"><option>Water / Soda water</option><option>Soft drink (Coke, Sprite)</option><option>Fruit juice</option><option>Energy drink</option><option>None (neat)</option></select></div>
+              <div class="field third"><label>Timing</label><select id="${m}alc_time"><option>With food</option><option>Empty stomach</option><option>Before bed</option><option>Late night</option></select></div>
+              <div class="field third"><label>Associated habits</label><div class="checkbox-group"><label><input type="checkbox" id="${m}alc_smoke"> Smoke while drinking</label><label><input type="checkbox" id="${m}alc_late"> Eat late night after</label><label><input type="checkbox" id="${m}alc_skip"> Skip breakfast next day</label></div></div>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="row">
+            <div class="field full"><label>Symptoms in the last 3 months (check all that apply)</label><div class="checkbox-group" id="${m}symptoms"><label><input type="checkbox" value="fatigue"> Constant fatigue even after sleep</label><label><input type="checkbox" value="hairfall"> Hair fall / brittle nails</label><label><input type="checkbox" value="dryskin"> Dry skin / dull complexion / dark circles</label><label><input type="checkbox" value="acidity"> Acidity / bloating / constipation / IBS</label><label><input type="checkbox" value="joint"> Joint pain / morning stiffness / bone pain</label><label><input type="checkbox" value="mood"> Mood swings / anxiety / depression / poor concentration</label><label><input type="checkbox" value="infection"> Frequent infections / slow wound healing / boils</label><label><input type="checkbox" value="thirst"> Excessive thirst / frequent urination / night urination</label><label><input type="checkbox" value="snore"> Snoring / poor sleep quality / daytime sleepiness</label><label><input type="checkbox" value="pcos_sym"> Irregular periods / PCOS signs / PMS severe</label><label><input type="checkbox" value="dizziness"> Dizziness / lightheadedness / fainting</label><label><input type="checkbox" value="cramps"> Muscle cramps / tingling / numbness</label><label><input type="checkbox" value="vision"> Blurred vision / eye strain / night blindness</label><label><input type="checkbox" value="memory"> Memory loss / confusion / brain fog</label><label><input type="checkbox" value="none_sym"> None of the above</label></div></div>
+          </div>
+          <div class="row">
+            <div class="field full"><label>Primary goal for joining D2D (select one)</label><div class="radio-group" id="${m}goal"><label><input type="radio" name="${m}goal" value="weight"> Lose weight / reduce belly fat</label><label><input type="radio" name="${m}goal" value="sugar"> Control sugar / prevent diabetes</label><label><input type="radio" name="${m}goal" value="bp"> Control BP / heart protection</label><label><input type="radio" name="${m}goal" value="energy"> Gain energy / reduce fatigue</label><label><input type="radio" name="${m}goal" value="prevention"> Family prevention (no disease yet)</label><label><input type="radio" name="${m}goal" value="child"> Child growth / development</label><label><input type="radio" name="${m}goal" value="pregnancy"> Pregnancy / lactation health</label><label><input type="radio" name="${m}goal" value="muscle"> Build muscle / fitness</label><label><input type="radio" name="${m}goal" value="senior"> Senior health / mobility</label><label><input type="radio" name="${m}goal" value="liver"> Liver detox / fatty liver reversal</label><label><input type="radio" name="${m}goal" value="kidney"> Kidney support / stone prevention</label><label><input type="radio" name="${m}goal" value="thyroid"> Thyroid balance</label></div></div>
+          </div>
+          <div class="row">
+            <div class="field full"><label>Anything else we should know (surgeries, diets tried, failures, preferences, cultural restrictions)</label><textarea id="${m}notes" placeholder="e.g., Tried keto for 2 months — lost 5kg but gained 8kg back. Cannot eat too much dal due to gas. Jain family — no onion/garlic. Prefer less spicy food. Fasting on Tuesdays."></textarea></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function toggleMemberAlcohol(idx) {
+  const val = document.getElementById(`m${idx}_alcohol`).value;
+  document.getElementById(`m${idx}_alcDetail`).classList.toggle('active', val === 'yes');
+}
+
+function calcMemberSugar(idx) {
+  const m = `m${idx}_`;
+  let total = 0;
+  ['sugar_tea_g','sugar_bisc_g','sugar_soft_g','sugar_mithai_g','sugar_cereal_g','sugar_ketchup_g'].forEach(id => {
+    const v = parseFloat(document.getElementById(m + id)?.value) || 0;
+    total += v;
+  });
+  document.getElementById(m + 'sugar_total').value = total;
+}
+
+// ===== VALIDATION =====
+function validateForm() {
+  const requiredFamily = ['familyName','contactNumber','address','totalMembers','primaryCook','decisionMaker','currentOil','currentAtta','currentRice','outsideFood','tobaccoUse','protocolCommitment','bloodTestWilling'];
+  let errors = [];
+  requiredFamily.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || !el.value.trim()) { errors.push(id); if (el) el.classList.add('error'); }
+    else { if (el) el.classList.remove('error'); }
+  });
+
+  const count = parseInt(document.getElementById('totalMembers').value) || 0;
+  for (let i = 0; i < count; i++) {
+    const m = `m${i}_`;
+    const requiredMember = ['name','relation','gender','age','height','weight','waist','activity','shift','sleep','sleepTime','wakeTime','meds','allergies','familyHx','surgery','bfastTime','bfastWhat','lunchTime','dinnerTime','meals','lateEating','dislikes','notes'];
+    requiredMember.forEach(field => {
+      const el = document.getElementById(m + field);
+      if (!el || !el.value.trim()) { errors.push(m + field); if (el) el.classList.add('error'); }
+      else { if (el) el.classList.remove('error'); }
+    });
+    const goalEls = document.querySelectorAll(`input[name="${m}goal"]`);
+    let goalChecked = false;
+    goalEls.forEach(g => { if (g.checked) goalChecked = true; });
+    if (!goalChecked) errors.push(m + 'goal');
+  }
+
+  if (errors.length > 0) {
+    alert('Please complete all fields. ' + errors.length + ' empty field(s) found. Scroll to find fields marked in red.');
+    const firstError = document.getElementById(errors[0]);
+    if (firstError) firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return false;
+  }
+  return true;
+}
+
+// ===== CALCULATION ENGINE =====
+function parseBloodValue(id) {
+  const el = document.getElementById(id);
+  if (!el || !el.value.trim()) return null;
+  const val = parseFloat(el.value);
+  return isNaN(val) ? null : val;
+}
+
+function calculateMember(idx) {
+  const m = `m${idx}_`;
+  const h = parseFloat(document.getElementById(m + 'height').value);
+  const w = parseFloat(document.getElementById(m + 'weight').value);
+  const waist = parseFloat(document.getElementById(m + 'waist').value);
+  const neck = parseFloat(document.getElementById(m + 'neck').value) || 0;
+  const hip = parseFloat(document.getElementById(m + 'hip').value) || 0;
+  const wrist = parseFloat(document.getElementById(m + 'wrist').value) || 0;
+  const age = parseInt(document.getElementById(m + 'age').value);
+  const gender = document.getElementById(m + 'gender').value;
+  const activity = document.getElementById(m + 'activity').value;
+  const sleep = parseFloat(document.getElementById(m + 'sleep').value) || 7;
+  const sleepQuality = document.getElementById(m + 'sleepQuality').value;
+  const dinnerTime = document.getElementById(m + 'dinnerTime').value;
+  const sugarTotal = parseFloat(document.getElementById(m + 'sugar_total').value) || 0;
+  const alcohol = document.getElementById(m + 'alcohol').value;
+  const smoke = document.getElementById(m + 'smoke').value;
+  const caffeine = parseFloat(document.getElementById(m + 'caffeine').value) || 0;
+  const gym = document.getElementById(m + 'gym').value;
+  const stress = document.getElementById(m + 'stress').value;
+  const bfastWhat = document.getElementById(m + 'bfastWhat').value;
+  const lateEating = document.getElementById(m + 'lateEating').value;
+  const goal = document.querySelector(`input[name="${m}goal"]:checked`)?.value || 'prevention';
+  const womenHealth = document.querySelector(`input[name="${m}womenhealth"]:checked`)?.value || 'na';
+
+  const diseases = Array.from(document.querySelectorAll(`#${m}diseases input:checked`)).map(cb => cb.value);
+  const symptoms = Array.from(document.querySelectorAll(`#${m}symptoms input:checked`)).map(cb => cb.value);
+
+  // Parse blood values
+  const blood = {
+    hb: parseBloodValue(m + 'blood_hb'),
+    glucose: parseBloodValue(m + 'blood_glucose'),
+    hba1c: parseBloodValue(m + 'blood_hba1c'),
+    chol: parseBloodValue(m + 'blood_chol'),
+    ldl: parseBloodValue(m + 'blood_ldl'),
+    hdl: parseBloodValue(m + 'blood_hdl'),
+    tg: parseBloodValue(m + 'blood_tg'),
+    tsh: parseBloodValue(m + 'blood_tsh'),
+    sgpt: parseBloodValue(m + 'blood_sgpt'),
+    sgot: parseBloodValue(m + 'blood_sgot'),
+    bili: parseBloodValue(m + 'blood_bili'),
+    creat: parseBloodValue(m + 'blood_creat'),
+    uric: parseBloodValue(m + 'blood_uric'),
+    b12: parseBloodValue(m + 'blood_b12'),
+    vitd: parseBloodValue(m + 'blood_vitd'),
+    iron: parseBloodValue(m + 'blood_iron'),
+    calcium: parseBloodValue(m + 'blood_calcium'),
+    sodium: parseBloodValue(m + 'blood_sodium'),
+    potassium: parseBloodValue(m + 'blood_potassium'),
+    crp: parseBloodValue(m + 'blood_crp')
+  };
+
+  const hasObesity = (waist / h) > 0.50 || (w / ((h/100)**2)) > 23;
+  const hasDiabetes = diseases.includes('diabetes') || (blood.glucose && blood.glucose > 126) || (blood.hba1c && blood.hba1c > 6.5);
+  const hasBP = diseases.includes('bp');
+  const hasLiver = diseases.includes('liver') || (blood.sgpt && blood.sgpt > 40);
+  const hasKidney = diseases.includes('kidney') || (blood.creat && blood.creat > 1.3) || (blood.uric && blood.uric > 7);
+  const hasThyroid = diseases.includes('thyroid') || (blood.tsh && blood.tsh > 4);
+  const hasHeart = diseases.includes('heart') || (blood.chol && blood.chol > 240) || (blood.ldl && blood.ldl > 160);
+  const hasPCOS = diseases.includes('pcos');
+  const hasCancer = diseases.includes('cancer');
+  const hasOsteoporosis = diseases.includes('osteoporosis');
+  const hasAnemia = diseases.includes('anemia') || (blood.hb && blood.hb < 12);
+  const hasGout = diseases.includes('gout') || (blood.uric && blood.uric > 6.5);
+  const hasAsthma = diseases.includes('asthma');
+
+  // IBW (Broca modified)
+  let ibw = gender === 'male' ? (h - 100) * 0.9 : (h - 100) * 0.85;
+  if (ibw < 40) ibw = 45;
+
+  // BMR (Mifflin-St Jeor)
+  let bmr = gender === 'male' ? (10*w)+(6.25*h)-(5*age)+5 : (10*w)+(6.25*h)-(5*age)-161;
+
+  // TDEE
+  const mult = {sedentary:1.2, standing:1.375, housework:1.375, labor:1.55, student:1.375, retired:1.2, notworking:1.2};
+  const tdee = Math.round(bmr * (mult[activity] || 1.2));
+
+  // WHtR, BMI, WHR
+  const whtr = waist / h;
+  const bmi = w / ((h/100)**2);
+  const whr = hip > 0 ? waist / hip : 0;
+  const nhtr = neck > 0 ? neck / h : 0;
+
+  // Classification
+  let classification = 'Healthy';
+  if (hasObesity) classification = 'Obesity';
+  if (hasDiabetes) classification = 'Diabetes';
+  if (hasBP) classification = 'BP';
+  if (hasLiver) classification = 'Fatty Liver';
+  if (hasHeart) classification = 'Heart';
+  if (hasKidney) classification = 'CKD';
+  if (hasThyroid) classification = 'Thyroid';
+  if (hasPCOS) classification = 'PCOS';
+  if (hasCancer) classification = 'Cancer Support';
+
+  // Priority disease
+  let priority = 'None';
+  if (hasObesity) priority = 'Obesity';
+  else if (hasDiabetes) priority = 'Diabetes';
+  else if (hasBP) priority = 'BP';
+  else if (hasLiver) priority = 'Fatty Liver';
+  else if (hasThyroid) priority = 'Thyroid';
+  else if (hasHeart) priority = 'Heart';
+  else if (hasKidney) priority = 'CKD';
+  else if (hasPCOS) priority = 'PCOS';
+
+  // Macros
+  let proteinPerKg = 1.0;
+  let carbPercent = 50;
+  let fiberTarget = 40;
+  let calorieTarget = tdee;
+
+  // VEGETARIAN PROTEIN ADJUSTMENT
+  const nv_egg = document.getElementById(m + 'nv_egg').checked;
+  const nv_chicken = document.getElementById(m + 'nv_chicken').checked;
+  const nv_fish = document.getElementById(m + 'nv_fish').checked;
+  const nv_mutton = document.getElementById(m + 'nv_mutton').checked;
+  const isVegetarian = !nv_egg && !nv_chicken && !nv_fish && !nv_mutton;
+  if (isVegetarian) {
+    proteinPerKg = 1.1; // 10% higher for plant protein lower biological value
+  }
+
+  if (hasObesity || hasDiabetes || hasPCOS) {
+    proteinPerKg = 1.2;
+    carbPercent = hasObesity ? 40 : 45;
+    fiberTarget = 45;
+    calorieTarget = Math.round(tdee * 0.85);
+  }
+  if (hasKidney) { proteinPerKg = 0.9; fiberTarget = 35; }
+  if (age < 13) { proteinPerKg = 1.1; carbPercent = 50; fiberTarget = 30; }
+  if (age > 65) { proteinPerKg = 1.1; carbPercent = 50; fiberTarget = 38; }
+  if (gym === 'heavy') { proteinPerKg = 1.4; calorieTarget = Math.round(tdee * 1.1); }
+  if (gym === 'moderate') { proteinPerKg = 1.2; }
+
+  const proteinWeight = (hasObesity && w > ibw * 1.1) ? ibw : w;
+  const proteinGrams = Math.round(proteinPerKg * proteinWeight);
+  const carbGrams = Math.round((calorieTarget * (carbPercent/100)) / 4);
+  const fatGrams = Math.round((calorieTarget - (proteinGrams*4) - (carbGrams*4)) / 9);
+  const fatPercent = Math.round((fatGrams * 9 / calorieTarget) * 100);
+
+  let gheeTsp = 2;
+  if (hasObesity || hasDiabetes || hasHeart) gheeTsp = 1;
+  if (hasLiver && alcohol === 'yes') gheeTsp = 1;
+  if (age < 13) gheeTsp = 2;
+
+  const waterL = Math.round((w * 0.033) * 10) / 10;
+
+  // Metabolic age
+  let metabolicAge = age;
+  if (whtr > 0.55) metabolicAge = age + 8;
+  else if (whtr > 0.50) metabolicAge = age + 4;
+  else if (whtr < 0.45 && bmi < 23) metabolicAge = age - 2;
+
+  // Triad score
+  let triadScore = 50;
+  if (proteinGrams >= proteinPerKg * w * 0.9) triadScore += 15;
+  if (fiberTarget >= 35) triadScore += 15;
+  if (sleep >= 7) triadScore += 10;
+  if (dinnerTime && parseInt(dinnerTime) <= 20) triadScore += 10;
+  if (sugarTotal < 25) triadScore += 10;
+  if (alcohol === 'no') triadScore += 5;
+  if (triadScore > 100) triadScore = 100;
+
+  // 5 MAJOR OUTCOME SCORES (0-100)
+  // 1. Metabolic Score (Sugar + Obesity)
+  let metabolicScore = 100;
+  if (whtr > 0.50) metabolicScore -= 25;
+  else if (whtr > 0.45) metabolicScore -= 15;
+  if (blood.glucose && blood.glucose > 126) metabolicScore -= 20;
+  else if (blood.glucose && blood.glucose > 100) metabolicScore -= 10;
+  if (blood.hba1c && blood.hba1c > 6.5) metabolicScore -= 20;
+  else if (blood.hba1c && blood.hba1c > 5.7) metabolicScore -= 10;
+  if (sugarTotal > 60) metabolicScore -= 15;
+  if (bmi > 25) metabolicScore -= 10;
+  if (hasDiabetes) metabolicScore -= 15;
+  if (metabolicScore < 0) metabolicScore = 0;
+
+  // 2. Cardiac Score (BP + Heart)
+  let cardiacScore = 100;
+  if (hasBP) cardiacScore -= 25;
+  if (hasHeart) cardiacScore -= 25;
+  if (blood.chol && blood.chol > 240) cardiacScore -= 15;
+  if (blood.ldl && blood.ldl > 160) cardiacScore -= 15;
+  if (blood.hdl && blood.hdl < 40) cardiacScore -= 10;
+  if (blood.tg && blood.tg > 200) cardiacScore -= 10;
+  if (smoke !== 'no') cardiacScore -= 15;
+  if (stress === 'high' || stress === 'severe') cardiacScore -= 10;
+  if (familyHx.includes('heart')) cardiacScore -= 10;
+  if (cardiacScore < 0) cardiacScore = 0;
+
+  // 3. Liver Score
+  let liverScore = 100;
+  if (hasLiver) liverScore -= 30;
+  if (blood.sgpt && blood.sgpt > 40) liverScore -= 20;
+  if (blood.sgot && blood.sgot > 40) liverScore -= 15;
+  if (blood.bili && blood.bili > 1.2) liverScore -= 10;
+  if (alcohol === 'yes') liverScore -= 20;
+  if (alcohol === 'occasional') liverScore -= 5;
+  if (whtr > 0.50) liverScore -= 10;
+  if (hasGout) liverScore -= 5;
+  if (liverScore < 0) liverScore = 0;
+
+  // 4. Renal Score (Kidney)
+  let renalScore = 100;
+  if (hasKidney) renalScore -= 30;
+  if (blood.creat && blood.creat > 1.3) renalScore -= 25;
+  if (blood.uric && blood.uric > 7) renalScore -= 15;
+  if (blood.uric && blood.uric > 6) renalScore -= 10;
+  if (blood.sodium && blood.sodium > 145) renalScore -= 10;
+  if (blood.potassium && (blood.potassium < 3.5 || blood.potassium > 5.5)) renalScore -= 10;
+  if (hasBP) renalScore -= 10;
+  if (hasDiabetes) renalScore -= 10;
+  if (renalScore < 0) renalScore = 0;
+
+  // 5. Overall Wellness Score
+  let wellnessScore = Math.round((metabolicScore + cardiacScore + liverScore + renalScore + triadScore) / 5);
+
+  // Root causes
+  const rootCauses = [];
+  const familyOil = document.getElementById('currentOil').value;
+  if (familyOil === 'vanaspati' || familyOil === 'refined') rootCauses.push(1);
+  if (sugarTotal > 40 || bfastWhat.toLowerCase().includes('nothing') || lateEating !== 'No') rootCauses.push(2);
+  if (diseases.length === 0 && symptoms.length > 2) rootCauses.push(3);
+  const familyRice = document.getElementById('currentRice').value;
+  const familyAtta = document.getElementById('currentAtta').value;
+  if (familyRice === 'polished' && familyAtta === 'refined') rootCauses.push(4);
+  const tobacco = document.getElementById('tobaccoUse').value;
+  if (tobacco !== 'none' || smoke !== 'no') rootCauses.push(5);
+  if (sleep < 6 || (dinnerTime && parseInt(dinnerTime) > 21) || sleepQuality === 'poor' || sleepQuality === 'verypoor') rootCauses.push(6);
+
+  // Axis
+  let axis = 'Endocrine-Metabolic';
+  if (rootCauses.includes(4) || hasLiver) axis = 'Gut-Liver-Brain';
+  if (rootCauses.includes(5) || symptoms.includes('infection')) axis = 'Immune-Inflammation';
+
+  // Micro nutrient targets
+  const micros = [];
+  if ((blood.hb && blood.hb < 12) || symptoms.includes('fatigue') || symptoms.includes('dizziness') || hasAnemia) {
+    micros.push({ name: 'Iron', target: '18mg/day', source: 'Fortified atta + DFS salt + A3 Amla', status: 'Deficient' });
+  } else {
+    micros.push({ name: 'Iron', target: '12mg/day', source: 'Fortified atta + DFS salt', status: 'Adequate' });
+  }
+  if ((blood.b12 && blood.b12 < 200) || symptoms.includes('memory') || symptoms.includes('cramps')) {
+    micros.push({ name: 'Vitamin B12', target: '2.4mcg/day', source: 'Fortified atta + dairy + supplement if needed', status: 'Deficient' });
+  } else {
+    micros.push({ name: 'Vitamin B12', target: '2.4mcg/day', source: 'Fortified atta + dairy', status: 'Adequate' });
+  }
+  if ((blood.vitd && blood.vitd < 20) || symptoms.includes('joint') || symptoms.includes('bone') || hasOsteoporosis) {
+    micros.push({ name: 'Vitamin D', target: '1000 IU/day', source: 'Sunlight 20min + fortified dairy + A7 Ragi', status: 'Deficient' });
+  } else {
+    micros.push({ name: 'Vitamin D', target: '600 IU/day', source: 'Sunlight + dairy', status: 'Adequate' });
+  }
+  if ((blood.iron && blood.iron < 30) || symptoms.includes('hairfall') || symptoms.includes('infection')) {
+    micros.push({ name: 'Zinc', target: '12mg/day', source: 'Fortified atta + A9 Pumpkin seeds', status: 'Deficient' });
+  } else {
+    micros.push({ name: 'Zinc', target: '8mg/day', source: 'Mixed dal + seeds', status: 'Adequate' });
+  }
+  if (hasThyroid || (blood.tsh && blood.tsh > 4)) {
+    micros.push({ name: 'Iodine', target: '150mcg/day', source: 'DFS salt only', status: 'Critical' });
+  } else {
+    micros.push({ name: 'Iodine', target: '150mcg/day', source: 'DFS salt', status: 'Adequate' });
+  }
+  if (symptoms.includes('acidity') || symptoms.includes('cramps') || sleep < 6) {
+    micros.push({ name: 'Magnesium', target: '400mg/day', source: 'A9 Pumpkin seeds + A5 Flaxseed + green vegetables', status: 'Low' });
+  } else {
+    micros.push({ name: 'Magnesium', target: '350mg/day', source: 'Seeds + vegetables', status: 'Adequate' });
+  }
+  if ((blood.calcium && blood.calcium < 8.5) || age > 50 || hasOsteoporosis || symptoms.includes('bone')) {
+    micros.push({ name: 'Calcium', target: '1200mg/day', source: 'A7 Ragi + dairy + sesame', status: 'Deficient' });
+  } else {
+    micros.push({ name: 'Calcium', target: '1000mg/day', source: 'Dairy + ragi', status: 'Adequate' });
+  }
+  if (symptoms.includes('dryskin') || symptoms.includes('vision') || hasLiver) {
+    micros.push({ name: 'Vitamin A', target: '900mcg/day', source: 'Fortified oil + A3 Amla + carrots', status: 'Low' });
+  } else {
+    micros.push({ name: 'Vitamin A', target: '700mcg/day', source: 'Fortified oil + vegetables', status: 'Adequate' });
+  }
+
+  // Add-ons
+  const addons = [];
+  if (symptoms.includes('fatigue') || symptoms.includes('hairfall') || symptoms.includes('dizziness') || hasAnemia) {
+    addons.push({ code: 'A3', name: 'Amla Candy', dose: '2 pieces daily', reason: 'Iron absorption + Vitamin C' });
+  }
+  if (hasDiabetes || goal === 'sugar' || symptoms.includes('thirst') || (blood.glucose && blood.glucose > 100)) {
+    addons.push({ code: 'A4', name: 'Methi Powder', dose: '1 tsp daily', reason: 'Glucose stability & fiber' });
+  }
+  if (hasObesity || hasHeart || goal === 'weight' || (blood.chol && blood.chol > 200)) {
+    addons.push({ code: 'A5', name: 'Flaxseed Powder', dose: '1 tbsp daily', reason: 'Omega-3 ALA & satiety' });
+  }
+  if (hasLiver || hasBP || symptoms.includes('joint') || (blood.crp && blood.crp > 3)) {
+    addons.push({ code: 'A6', name: 'Turmeric-Pepper Mix', dose: '½ tsp daily', reason: 'Anti-inflammatory & liver support' });
+  }
+  if (age < 19 || age > 50 || symptoms.includes('dryskin') || hasOsteoporosis) {
+    addons.push({ code: 'A7', name: 'Sprouted Ragi Flour', dose: '40g breakfast', reason: 'Calcium & low-GI energy' });
+  }
+  if (sleep < 6 || symptoms.includes('mood') || alcohol === 'yes' || stress === 'high' || stress === 'severe') {
+    addons.push({ code: 'A9', name: 'Pumpkin Seeds', dose: '15g nightly', reason: 'Magnesium & sleep support' });
+  }
+  if (hasBP || hasLiver || (blood.sgpt && blood.sgpt > 40)) {
+    addons.push({ code: 'A2', name: 'Beetroot Powder', dose: '1 tsp daily', reason: 'Nitrates for BP & liver detox' });
+  }
+  if (hasThyroid || stress === 'high') {
+    addons.push({ code: 'A8', name: 'Ashwagandha Powder', dose: '½ tsp daily', reason: 'Thyroid-adrenal support' });
+  }
+  if (age > 50 || hasKidney || hasOsteoporosis) {
+    addons.push({ code: 'A1', name: 'Halim Seeds', dose: '1 tsp soaked daily', reason: 'Iron & calcium for bones' });
+  }
+  if (hasPCOS || (blood.hb && blood.hb < 11 && gender === 'female')) {
+    addons.push({ code: 'A10', name: 'Moringa Powder', dose: '1 tsp daily', reason: 'Iron + calcium + protein for women' });
+  }
+
+  // Behaviors
+  const behaviors = [
+    'Water — 2 glasses 20 minutes before every major meal',
+    'Protein-First — eat dal / egg / paneer BEFORE roti or rice',
+    'Chew Rule — chew each bite 20+ times, put spoon down between bites',
+    'Eat with the Sun — breakfast within 1 hour of waking, dinner before 7 PM',
+    'Sleep — 7 to 8 hours, asleep by 10 PM'
+  ];
+  if (sugarTotal > 25) behaviors.push('Sugar Ladder — reduce added sugar to under 25g/day over 8 weeks');
+  if (alcohol === 'yes') behaviors.push('Alcohol Harm-Reduction — pre-drink protein, post-drink turmeric milk, no next-day skipping');
+  if (hasDiabetes) behaviors.push('No refined sugar / no jaggery in tea / no soft drinks — ever');
+  if (hasBP) behaviors.push('Total salt under 5g/day — no papad, no pickle, no outside namkeen');
+  if (hasKidney) behaviors.push('Low potassium protocol — limit banana, coconut, orange');
+  if (hasLiver) behaviors.push('No vanaspati ever / no fried food / no alcohol');
+  if (hasHeart) behaviors.push('No trans fat / no reused oil / 1 tsp ghee only');
+  if (hasThyroid) behaviors.push('DFS salt for iodine / no raw cabbage/cauliflower excess');
+  if (hasPCOS) behaviors.push('No refined carb / protein every 3 hours / cinnamon in morning');
+  if (stress === 'high' || stress === 'severe') behaviors.push('Deep breathing 5 min before meals / A8 Ashwagandha at night');
+  if (gym === 'none') behaviors.push('Daily 30-minute walk after dinner — already doing, just continue');
+
+  // Meal Plan Generation
+  const mealPlan = generateMealPlan({
+    gender, age, hasDiabetes, hasBP, hasLiver, hasKidney, hasHeart, hasThyroid, hasPCOS, hasObesity,
+    hasAnemia, proteinGrams, carbGrams, fiberTarget, fatGrams, calorieTarget,
+    nv_egg: document.getElementById(m + 'nv_egg').checked,
+    nv_chicken: document.getElementById(m + 'nv_chicken').checked,
+    nv_fish: document.getElementById(m + 'nv_fish').checked,
+    d_milk: document.getElementById(m + 'd_milk').checked,
+    d_curd: document.getElementById(m + 'd_curd').checked,
+    d_paneer: document.getElementById(m + 'd_paneer').checked,
+    d_ghee: document.getElementById(m + 'd_ghee').checked,
+    dislikes: document.getElementById(m + 'dislikes').value,
+    bfastWhat
+  });
+
+  // Basket tier
+  let basketTier = 'Standard';
+  let basketPrice = 10000;
+  if (hasObesity) { basketTier = 'Plus Obesity'; basketPrice = 12500; }
+  else if (hasDiabetes) { basketTier = 'Plus Diabetes'; basketPrice = 11500; }
+  else if (hasBP) { basketTier = 'Plus BP'; basketPrice = 11000; }
+  else if (hasLiver) { basketTier = 'Plus Fatty Liver'; basketPrice = 12000; }
+  else if (hasHeart) { basketTier = 'Plus Heart'; basketPrice = 11500; }
+  else if (hasKidney) { basketTier = 'Plus CKD'; basketPrice = 11000; }
+  else if (hasPCOS) { basketTier = 'Plus PCOS'; basketPrice = 11500; }
+  else if (hasCancer) { basketTier = 'Plus Cancer Support'; basketPrice = 12000; }
+
+  return {
+    name: document.getElementById(m + 'name').value,
+    bmi: bmi.toFixed(1), whtr: whtr.toFixed(2), whr: whr > 0 ? whr.toFixed(2) : 'N/A',
+    nhtr: nhtr > 0 ? nhtr.toFixed(2) : 'N/A',
+    ibw: ibw.toFixed(1), bmr: Math.round(bmr), tdee, metabolicAge, triadScore,
+    classification, priority, axis, rootCauses,
+    macros: { calories: calorieTarget, protein: proteinGrams, proteinPerKg: proteinPerKg.toFixed(1),
+      carbs: carbGrams, carbPercent, fiber: fiberTarget, fat: fatGrams, fatPercent, gheeTsp, waterL },
+    micros, addons, behaviors, mealPlan, basketTier, basketPrice,
+    scores: { metabolic: metabolicScore, cardiac: cardiacScore, liver: liverScore, renal: renalScore, wellness: wellnessScore },
+    flags: { obesity: hasObesity, diabetes: hasDiabetes, bp: hasBP, liver: hasLiver,
+      kidney: hasKidney, thyroid: hasThyroid, heart: hasHeart, pcos: hasPCOS, cancer: hasCancer,
+      osteoporosis: hasOsteoporosis, anemia: hasAnemia, gout: hasGout, asthma: hasAsthma,
+      vegetarian: isVegetarian },
+    sugarTotal, alcohol, sleep, dinnerTime, age, gender, blood
+  };
+}
+
+function generateMealPlan(p) {
+  const isVegetarian = !p.nv_egg && !p.nv_chicken && !p.nv_fish && !p.nv_mutton;
+  const meals = { breakfast: [], lunch: [], dinner: [], snacks: [] };
+
+  // BREAKFAST
+  if (isVegetarian) {
+    const vegBfasts = [
+      { item: 'Sprouted Moong Dal Chilla (2) + Curd', qty: '2 chillas + 100g curd', protein: '12g', carb: '25g', note: 'Complete protein + probiotic' },
+      { item: 'Ragi Porridge (A7) + Milk + Peanut Powder', qty: '1 bowl + 200ml milk', protein: '10g', carb: '30g', note: 'Calcium + protein + iron' },
+      { item: 'Paneer Bhurji + 1 D2D Roti', qty: '50g paneer + 1 roti', protein: '14g', carb: '18g', note: 'Casein protein + fat-soluble vitamins' },
+      { item: 'Mixed Dal Dosa (Fermented) + Coconut Chutney', qty: '2 dosas + chutney', protein: '10g', carb: '28g', note: 'Fermentation increases bioavailability' },
+      { item: 'Sattu Drink (Roasted Channa) + Jaggery', qty: '1 glass + 10g jaggery', protein: '12g', carb: '22g', note: "Bihar's traditional protein drink" },
+      { item: 'D2D Protein Atta Paratha + Amla Chutney (A3)', qty: '1 paratha + 2 tbsp chutney', protein: '8g', carb: '24g', note: 'Fiber + Vitamin C pairing' },
+      { item: 'Besan Cheela + Mint Chutney', qty: '2 cheelas + chutney', protein: '10g', carb: '20g', note: 'Chickpea protein + digestive enzymes' }
+    ];
+    meals.breakfast.push(vegBfasts[new Date().getDay()] || vegBfasts[0]);
+  } else {
+    if (p.hasDiabetes || p.hasPCOS) {
+      meals.breakfast.push({ item: 'D2D Protein Atta Chilla (2 pieces)', qty: '80g batter', protein: '12g', carb: '15g', note: 'Low-GI start' });
+    } else if (p.age < 13) {
+      meals.breakfast.push({ item: 'Sprouted Ragi Porridge (A7) + Milk', qty: '1 bowl', protein: '8g', carb: '30g', note: 'Growth fuel' });
+    } else if (p.nv_egg) {
+      meals.breakfast.push({ item: '2 Boiled Eggs + 1 D2D Roti', qty: '2 eggs + 1 roti', protein: '14g', carb: '18g', note: 'Protein anchor' });
+    } else if (p.d_paneer) {
+      meals.breakfast.push({ item: 'Paneer Bhurji + 1 D2D Roti', qty: '50g paneer', protein: '12g', carb: '18g', note: 'Protein anchor' });
+    } else {
+      meals.breakfast.push({ item: 'D2D Mixed Dal Chilla (2 pieces)', qty: '80g batter', protein: '10g', carb: '20g', note: 'Protein + fiber' });
+    }
+  }
+
+  if (p.d_milk && !p.dislikes.includes('milk')) {
+    meals.breakfast.push({ item: 'Warm Turmeric Milk (A6)', qty: '200ml', protein: '6g', carb: '10g', note: 'Anti-inflammatory' });
+  } else {
+    meals.breakfast.push({ item: 'Herbal Tea / Green Tea', qty: '1 cup', protein: '0g', carb: '0g', note: 'No sugar' });
+  }
+
+  if (p.hasThyroid) {
+    meals.breakfast.push({ item: 'Soaked Walnut (2 pieces)', qty: '2 halves', protein: '2g', carb: '2g', note: 'Selenium for thyroid' });
+  }
+
+  // LUNCH
+  meals.lunch.push({ item: 'D2D Protein Atta Roti', qty: '2 rotis (60g atta)', protein: '8g', carb: '30g', note: 'Base staple' });
+  meals.lunch.push({ item: 'D2D Mixed Dal (Moong+Masoor)', qty: '1 bowl (150g cooked)', protein: '12g', carb: '20g', note: 'Primary protein' });
+
+  if (isVegetarian) {
+    if (p.d_paneer) {
+      meals.lunch.push({ item: 'Paneer Tikka / Stir-fry', qty: '80g', protein: '16g', carb: '3g', note: 'Calcium + protein — vegetarian primary source' });
+    }
+    meals.lunch.push({ item: 'Soaked Mixed Dal (Moong+Masoor)', qty: '1.5 bowl', protein: '14g', carb: '22g', note: 'Soaked 8hrs — reduced phytates, better iron absorption' });
+  } else {
+    if (p.nv_chicken || p.nv_fish) {
+      meals.lunch.push({ item: p.nv_chicken ? 'Grilled Chicken (100g)' : 'Steamed Fish (100g)', qty: '100g', protein: '25g', carb: '0g', note: 'Lean protein' });
+    } else if (p.d_paneer) {
+      meals.lunch.push({ item: 'Paneer Tikka / Stir-fry', qty: '50g', protein: '10g', carb: '2g', note: 'Calcium + protein' });
+    } else if (p.nv_egg) {
+      meals.lunch.push({ item: 'Egg Curry (1 egg)', qty: '1 egg', protein: '6g', carb: '3g', note: 'B12 boost' });
+    }
+  }
+
+  meals.lunch.push({ item: 'Seasonal Vegetable Sabzi', qty: '1.5 katori', protein: '3g', carb: '12g', note: 'Fiber + micronutrients' });
+  meals.lunch.push({ item: 'Salad (cucumber, tomato, beetroot)', qty: '1 katori', protein: '1g', carb: '5g', note: 'Raw enzymes' });
+  meals.lunch.push({ item: 'Fortified Mustard Oil (cooking)', qty: '1.5 tsp', protein: '0g', carb: '0g', note: 'Omega-3 + Vit A/D' });
+
+  if (p.hasBP) {
+    meals.lunch.push({ item: 'DFS Salt (reduced)', qty: '< 2g total', protein: '0g', carb: '0g', note: 'Sodium control' });
+  }
+
+  // DINNER
+  if (p.hasDiabetes || p.hasObesity) {
+    meals.dinner.push({ item: 'D2D Protein Atta Roti', qty: '1 roti (30g atta)', protein: '4g', carb: '15g', note: 'Reduced carb' });
+  } else {
+    meals.dinner.push({ item: 'D2D Protein Atta Roti OR FRK Rice', qty: '1.5 roti OR 1 katori rice', protein: '6g', carb: '25g', note: 'Complex carb' });
+  }
+
+  meals.dinner.push({ item: 'D2D Mixed Dal (lighter than lunch)', qty: '1 bowl', protein: '10g', carb: '18g', note: 'Easy digest' });
+  meals.dinner.push({ item: 'Cooked Vegetables (bottle gourd, pumpkin)', qty: '1.5 katori', protein: '2g', carb: '10g', note: 'Fiber + hydration' });
+
+  if (p.d_curd && !p.dislikes.includes('curd')) {
+    meals.dinner.push({ item: 'Fresh Curd / Buttermilk', qty: '100g', protein: '3g', carb: '4g', note: 'Probiotic + calcium' });
+  }
+
+  meals.dinner.push({ item: 'Bilona Ghee', qty: p.gheeTsp + ' tsp', protein: '0g', carb: '0g', note: 'Healthy fat + K2' });
+
+  if (p.hasLiver || p.hasHeart) {
+    meals.dinner.push({ item: 'A2 Beetroot Salad', qty: '½ katori', protein: '1g', carb: '5g', note: 'Liver support' });
+  }
+
+  // SNACKS
+  if (isVegetarian) {
+    meals.snacks.push({ item: 'A3 Amla Candy (MANDATORY for vegetarians)', qty: '2 pieces', protein: '0g', carb: '5g', note: 'Vitamin C — 3x iron absorption boost' });
+    meals.snacks.push({ item: 'Sattu Drink (Roasted Channa Flour)', qty: '1 glass', protein: '8g', carb: '12g', note: 'Bihar protein drink — 20g protein per 100g' });
+    meals.snacks.push({ item: 'Sesame Seeds (Til) + Jaggery', qty: '1 tbsp', protein: '2g', carb: '4g', note: 'Calcium + iron for vegetarian bone health' });
+  }
+  if (p.age > 50) {
+    meals.snacks.push({ item: 'A9 Pumpkin Seeds (soaked)', qty: '15g', protein: '3g', carb: '2g', note: 'Magnesium + sleep' });
+  }
+  if (p.hasAnemia || p.symptoms && p.symptoms.includes('fatigue')) {
+    meals.snacks.push({ item: 'A3 Amla Candy', qty: '2 pieces', protein: '0g', carb: '5g', note: 'Iron + Vit C' });
+  }
+  if (p.hasDiabetes) {
+    meals.snacks.push({ item: 'Roasted Chana / Peanut (unsalted)', qty: '30g', protein: '7g', carb: '10g', note: 'Low-GI snack' });
+  } else {
+    meals.snacks.push({ item: 'D2D Peanut Chikki (jaggery-based)', qty: '1 small piece', protein: '3g', carb: '8g', note: 'Energy boost' });
+  }
+  if (p.hasPCOS) {
+    meals.snacks.push({ item: 'Cinnamon Tea + Flaxseed (A5)', qty: '1 cup + 1 tsp', protein: '1g', carb: '3g', note: 'Insulin sensitivity' });
+  }
+  if (p.stress === 'high' || p.stress === 'severe') {
+    meals.snacks.push({ item: 'A8 Ashwagandha in Warm Milk', qty: '½ tsp + 100ml', protein: '3g', carb: '5g', note: 'Stress adaptogen' });
+  }
+
+  return meals;
+}
+
+// ===== FAMILY BASKET BUILDER =====
+function buildFamilyBasket(results, memberCount) {
+  const anyDisease = results.some(r => r.classification !== 'Healthy');
+  const anyDiabetes = results.some(r => r.flags.diabetes);
+  const anyBP = results.some(r => r.flags.bp);
+  const anyObesity = results.some(r => r.flags.obesity);
+  const anyLiver = results.some(r => r.flags.liver);
+  const anyKidney = results.some(r => r.flags.kidney);
+  const anyThyroid = results.some(r => r.flags.thyroid);
+  const anyHeart = results.some(r => r.flags.heart);
+  const anyPCOS = results.some(r => r.flags.pcos);
+  const anySenior = results.some(r => r.age > 65);
+  const anyChild = results.some(r => r.age < 13);
+  const anyPregnant = results.some(r => r.womenHealth && r.womenHealth.startsWith('p'));
+  const anyLactating = results.some(r => r.womenHealth && r.womenHealth.startsWith('l'));
+  const totalSugar = results.reduce((sum, r) => sum + r.sugarTotal, 0);
+  const anyAlcohol = results.some(r => r.alcohol === 'yes');
+  const anySmoke = results.some(r => r.smoke !== 'no');
+
+  const items = [];
+  const riceType = anyDiabetes ? 'FRK Fortified Rice (low-GI, Iron+Zinc)' : 'D2D Fortified Rice (Iron + Zinc + Folate)';
+  const riceQty = memberCount <= 2 ? '5 kg' : memberCount <= 4 ? '10 kg' : memberCount <= 6 ? '15 kg' : '20 kg';
+  items.push({ name: riceType, qty: riceQty, note: anyDiabetes ? 'For diabetic member — low glycemic' : 'Base staple for all family members' });
+
+  const attaQty = memberCount <= 2 ? '5 kg' : memberCount <= 4 ? '10 kg' : memberCount <= 6 ? '15 kg' : '20 kg';
+  items.push({ name: 'D2D Protein Atta (Whole Wheat + Pulse Blend + Iron/Zinc/B12/Folate)', qty: attaQty, note: 'Roti for all meals — protein-fortified' });
+
+  const dalQty = memberCount <= 2 ? '2 kg' : memberCount <= 4 ? '4 kg' : memberCount <= 6 ? '6 kg' : '8 kg';
+  items.push({ name: 'D2D Mixed Dal (Moong + Masoor + Channa + Urad)', qty: dalQty, note: 'Primary protein source for vegetarians' });
+
+  items.push({ name: 'Fortified Cold-Pressed Mustard Oil (Vitamin A + D)', qty: memberCount <= 3 ? '1 Litre' : memberCount <= 6 ? '2 Litres' : '3 Litres', note: 'Only cooking oil — no refined, no vanaspati' });
+
+  const gheeQty = anyObesity ? '250g' : '500g';
+  items.push({ name: 'Bilona Desi Ghee (Vitamin K2 + Butyric Acid)', qty: gheeQty, note: anyObesity ? 'Reduced for weight protocol' : 'Brain health + gut healing' });
+
+  items.push({ name: 'DFS Salt (Double Fortified: Iron + Iodine)', qty: '1 kg', note: 'Only salt in kitchen — thyroid + anemia support' });
+  items.push({ name: 'Natural Jaggery (Iron-rich, unprocessed)', qty: anyDiabetes ? '250g (for non-diabetic only)' : '500g', note: anyDiabetes ? 'For non-diabetic members only' : 'Sweetener replacement — mineral-rich' });
+  items.push({ name: 'D2D Spice Box (Turmeric, Cumin, Coriander, Black Pepper, Methi)', qty: '500g mixed', note: 'Anti-inflammatory daily use' });
+
+  // VEGETARIAN FAMILY BASKET ADDITIONS
+  const anyVegetarian = results.some(r => !r.nv_egg && !r.nv_chicken && !r.nv_fish && !r.nv_mutton);
+  if (anyVegetarian) {
+    items.push({ name: 'Sprouted Mixed Dal Kit (Pre-soaked)', qty: '1 kg', note: 'Vegetarian: Reduced phytates, better iron/zinc absorption' });
+    items.push({ name: 'Sattu (Roasted Channa Flour)', qty: '500g', note: 'Vegetarian: Bihar protein drink — 20g protein per 100g' });
+    items.push({ name: 'Besan (Chickpea Flour)', qty: '500g', note: 'Vegetarian: Cheela, kadhi, pakora — protein variety' });
+    items.push({ name: 'Nutritional Yeast (B12 Fortified)', qty: '100g', note: 'Vegetarian: B12 boost — sprinkle on dal/roti' });
+    items.push({ name: 'Sesame Seeds (Til)', qty: '250g', note: 'Vegetarian: Calcium + iron + zinc for bone health' });
+    items.push({ name: 'A3 Amla Candy (MANDATORY)', qty: '500g', note: 'Vegetarian: Vitamin C — 3x iron absorption. Daily with meals.' });
+    items.push({ name: 'A5 Flaxseed Powder (Omega-3)', qty: '250g', note: 'Vegetarian: Replaces fish oil — ALA omega-3' });
+    items.push({ name: 'A7 Sprouted Ragi Flour', qty: '1 kg', note: 'Vegetarian: Calcium + protein — replaces dairy if intolerant' });
+    items.push({ name: 'A9 Pumpkin Seeds', qty: '250g', note: 'Vegetarian: Zinc + magnesium — critical for immunity' });
+  }
+
+  if (anyChild) {
+    items.push({ name: 'D2D Peanut Chikki / Protein Laddu', qty: '500g', note: 'Child growth + school snack' });
+    if (!anyVegetarian) {
+      items.push({ name: 'Sprouted Ragi Flour (A7)', qty: '1 kg', note: 'Calcium + iron for growing bones' });
+    }
+  }
+  if (anySenior) {
+    items.push({ name: 'D2D Soft Moong Dal (Pre-soaked, easy digest)', qty: '1 kg', note: 'Senior-friendly protein' });
+    items.push({ name: 'A1 Halim Seeds', qty: '250g', note: 'Iron + calcium for bone density' });
+  }
+  if (anyPregnant || anyLactating) {
+    items.push({ name: 'D2D Pregnancy Mix (Dates + Dry Fruits + Gond)', qty: '500g', note: 'Extra calories + folate + calcium' });
+    items.push({ name: 'Garden Cress Seeds (Halim)', qty: '250g', note: 'Iron + folate for pregnancy' });
+  }
+  if (anyAlcohol || anyLiver) {
+    items.push({ name: 'D2D Kanji / Fermented Probiotic Drink', qty: '2 Litres', note: 'Liver support + gut health' });
+    items.push({ name: 'A2 Beetroot Powder', qty: '250g', note: 'Liver detox + blood purification' });
+  }
+  if (anyKidney) {
+    items.push({ name: 'Low-Potassium Vegetable Mix', qty: '1 kg', note: 'Bottle gourd, pumpkin, ridge gourd' });
+  }
+  if (anyThyroid) {
+    items.push({ name: 'Brazil Nuts (2-3 per day)', qty: '100g', note: 'Selenium for thyroid conversion' });
+  }
+  if (totalSugar > 100) {
+    items.push({ name: 'Stevia Leaves / Natural Sweetener', qty: '50g', note: 'Tea/coffee sugar replacement' });
+  }
+  if (anySmoke) {
+    items.push({ name: 'A3 Amla Candy + A6 Turmeric Mix', qty: '250g each', note: 'Antioxidant support for smokers' });
+  }
+
+  // Individual add-on summary
+  const allAddons = [];
+  results.forEach((r, i) => {
+    r.addons.forEach(a => {
+      allAddons.push({ member: r.name, code: a.code, name: a.name, dose: a.dose, reason: a.reason });
+    });
+  });
+
+  return { items, allAddons, anyDisease, anyDiabetes, anyBP, anyObesity, anyLiver, anyKidney, anyThyroid, anyHeart, anyPCOS };
+}
+
+// ===== SUBMIT & BUILD DASHBOARD =====
+function submitForm() {
+  if (!validateForm()) return;
+
+  const count = parseInt(document.getElementById('totalMembers').value);
+  const results = [];
+  for (let i = 0; i < count; i++) {
+    results.push(calculateMember(i));
+  }
+
+  const familyBasket = buildFamilyBasket(results, count);
+
+  document.getElementById('dashFamilyName').textContent = document.getElementById('familyName').value + ' — ' + count + ' Members';
+
+  const pillsContainer = document.getElementById('familyPills');
+  pillsContainer.innerHTML = results.map(r => {
+    const cls = r.classification === 'Healthy' ? 'healthy' : 'diseased';
+    return `<span class="member-pill ${cls}">${r.name}: ${r.classification}</span>`;
+  }).join('');
+
+  const basketHTML = `
+    <div class="basket-grid">
+      ${familyBasket.items.map(item => `
+        <div class="basket-item">
+          <span>${item.name}</span>
+          <span class="qty">${item.qty}</span>
+        </div>
+      `).join('')}
+    </div>
+    <div style="margin-top:14px; padding:12px; background:var(--info-bg); border-radius:6px; font-size:0.84rem;">
+      <strong style="color:var(--info);">Family Protocol Notes:</strong><br>
+      ${familyBasket.anyDiabetes ? '• FRK rice protocol active for diabetic member.<br>' : ''}
+      ${familyBasket.anyBP ? '• Strict sodium control: no outside pickle, no papad, total salt under 5g/day.<br>' : ''}
+      ${familyBasket.anyObesity ? '• High-fiber protocol: extra vegetables, protein-first rule for all.<br>' : ''}
+      ${familyBasket.anyLiver ? '• Liver support: no vanaspati, no fried food, kanji daily.<br>' : ''}
+      ${familyBasket.anyKidney ? '• Kidney-friendly: low potassium vegetables, controlled protein.<br>' : ''}
+      ${familyBasket.anyThyroid ? '• Thyroid support: DFS salt for iodine, Brazil nuts for selenium.<br>' : ''}
+      ${familyBasket.anyHeart ? '• Heart protection: no trans fat, flaxseed daily, ghee limited to 1 tsp.<br>' : ''}
+      ${familyBasket.anyPCOS ? '• PCOS protocol: cinnamon + flaxseed, no refined sugar.<br>' : ''}
+      ${familyBasket.anyDisease ? '• D2D Plus tier recommended. Monthly nutritionist check-ins advised.<br>' : '• Standard prevention protocol. 6-month review schedule.<br>'}
+      ${familyBasket.anyVegetarian ? '• <strong>VEGETARIAN PROTOCOL ACTIVE:</strong> 100% shakahari basket. No egg/chicken/fish/mutton. B12 quarterly test mandatory. A3 Amla daily.<br>' : ''}
+      • Water rule: 2 glasses before every meal for every member.
+      • Protein-first rule: dal/egg/paneer before roti/rice for everyone.
+    </div>
+    ${familyBasket.allAddons.length > 0 ? `
+    <div style="margin-top:16px;">
+      <h4 style="color:var(--primary); font-size:0.9rem; margin-bottom:10px;">Individual Add-On Sachets (Per Person)</h4>
+      <table class="table-audit" style="font-size:0.82rem;">
+        <thead><tr><th>Member</th><th>Code</th><th>Sachet</th><th>Dose</th><th>Why</th></tr></thead>
+        <tbody>
+          ${familyBasket.allAddons.map(a => `<tr><td>${a.member}</td><td style="font-weight:600;color:var(--primary)">${a.code}</td><td>${a.name}</td><td>${a.dose}</td><td style="font-size:0.75rem;color:var(--text-secondary)">${a.reason}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : ''}
+  `;
+  document.getElementById('familyBasketContent').innerHTML = basketHTML;
+
+  let memberHTML = '';
+  results.forEach((r, idx) => {
+    memberHTML += `
+    <div class="dash-grid" style="margin-top:24px;">
+      <div class="dash-card" style="grid-column: 1 / -1; background:var(--primary-light); border:2px solid var(--primary);">
+        <h3>👤 ${r.name} — ${r.classification} Protocol ${r.flags.vegetarian ? '<span style="background:#2e7d32; color:white; padding:2px 10px; border-radius:12px; font-size:0.75rem; margin-left:8px;">🌿 100% VEGETARIAN</span>' : ''}</h3>
+        <div style="display:flex; flex-wrap:wrap; gap:24px; align-items:center;">
+          <div style="flex:1; min-width:200px;">
+            <div class="metric-row"><span class="metric-label">Age / Gender</span><span class="metric-value">${r.age} yrs / ${r.gender === 'male' ? 'Male' : 'Female'}</span></div>
+            <div class="metric-row"><span class="metric-label">BMI</span><span class="metric-value ${r.bmi > 23 ? 'warn' : 'good'}">${r.bmi}</span></div>
+            <div class="metric-row"><span class="metric-label">WHtR (Waist ÷ Height)</span><span class="metric-value ${r.whtr > 0.50 ? 'danger' : (r.whtr > 0.45 ? 'warn' : 'good')}">${r.whtr} ${r.whtr > 0.50 ? '⚠️ Central Obesity' : ''}</span></div>
+            <div class="metric-row"><span class="metric-label">Metabolic Age</span><span class="metric-value ${r.metabolicAge > r.age ? 'warn' : 'good'}">${r.metabolicAge} yrs</span></div>
+            <div class="metric-row"><span class="metric-label">Primary Axis</span><span class="metric-value">${r.axis}</span></div>
+            <div class="metric-row"><span class="metric-label">Priority Disease</span><span class="metric-value ${r.priority !== 'None' ? 'danger' : 'good'}">${r.priority}</span></div>
+          </div>
+          <div style="flex:1; min-width:200px;">
+            <div class="metric-row"><span class="metric-label">Triad Score</span><span class="metric-value">${r.triadScore}/100</span></div>
+            <div class="metric-row"><span class="metric-label">BMR</span><span class="metric-value">${r.bmr} kcal</span></div>
+            <div class="metric-row"><span class="metric-label">TDEE</span><span class="metric-value">${r.tdee} kcal</span></div>
+            <div class="metric-row"><span class="metric-label">Ideal Weight</span><span class="metric-value">${r.ibw} kg</span></div>
+            <div class="metric-row"><span class="metric-label">Water Target</span><span class="metric-value">${r.macros.waterL} L/day</span></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <div style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:6px;">Root Cause Radar:</div>
+          <div class="radar-container">
+            <div class="radar-item ${r.rootCauses.includes(1) ? 'danger' : 'safe'}">Inflammation<br><small>RC1</small></div>
+            <div class="radar-item ${r.rootCauses.includes(2) ? 'danger' : 'safe'}">Insulin Resist<br><small>RC2</small></div>
+            <div class="radar-item ${r.rootCauses.includes(3) ? 'danger' : 'safe'}">Micronutrient<br><small>RC3</small></div>
+            <div class="radar-item ${r.rootCauses.includes(4) ? 'danger' : 'safe'}">Gut Dysbiosis<br><small>RC4</small></div>
+            <div class="radar-item ${r.rootCauses.includes(5) ? 'danger' : 'safe'}">Oxidative Stress<br><small>RC5</small></div>
+            <div class="radar-item ${r.rootCauses.includes(6) ? 'danger' : 'safe'}">Circadian Disrupt<br><small>RC6</small></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <h3>🎯 5 Major Health Outcomes</h3>
+        <div style="margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;">
+            <span>Metabolic (Sugar + Obesity)</span>
+            <span class="${r.scores.metabolic >= 70 ? 'good' : (r.scores.metabolic >= 50 ? 'warn' : 'danger')}">${r.scores.metabolic}/100</span>
+          </div>
+          <div class="score-bar"><div class="score-bar-fill ${r.scores.metabolic >= 70 ? 'good' : (r.scores.metabolic >= 50 ? 'warn' : 'danger')}" style="width:${r.scores.metabolic}%"></div></div>
+        </div>
+        <div style="margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;">
+            <span>Cardiac (BP + Heart)</span>
+            <span class="${r.scores.cardiac >= 70 ? 'good' : (r.scores.cardiac >= 50 ? 'warn' : 'danger')}">${r.scores.cardiac}/100</span>
+          </div>
+          <div class="score-bar"><div class="score-bar-fill ${r.scores.cardiac >= 70 ? 'good' : (r.scores.cardiac >= 50 ? 'warn' : 'danger')}" style="width:${r.scores.cardiac}%"></div></div>
+        </div>
+        <div style="margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;">
+            <span>Liver Health</span>
+            <span class="${r.scores.liver >= 70 ? 'good' : (r.scores.liver >= 50 ? 'warn' : 'danger')}">${r.scores.liver}/100</span>
+          </div>
+          <div class="score-bar"><div class="score-bar-fill ${r.scores.liver >= 70 ? 'good' : (r.scores.liver >= 50 ? 'warn' : 'danger')}" style="width:${r.scores.liver}%"></div></div>
+        </div>
+        <div style="margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;">
+            <span>Renal (Kidney)</span>
+            <span class="${r.scores.renal >= 70 ? 'good' : (r.scores.renal >= 50 ? 'warn' : 'danger')}">${r.scores.renal}/100</span>
+          </div>
+          <div class="score-bar"><div class="score-bar-fill ${r.scores.renal >= 70 ? 'good' : (r.scores.renal >= 50 ? 'warn' : 'danger')}" style="width:${r.scores.renal}%"></div></div>
+        </div>
+        <div style="margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;">
+            <span><strong>Overall Wellness</strong></span>
+            <span class="${r.scores.wellness >= 70 ? 'good' : (r.scores.wellness >= 50 ? 'warn' : 'danger')}"><strong>${r.scores.wellness}/100</strong></span>
+          </div>
+          <div class="score-bar"><div class="score-bar-fill ${r.scores.wellness >= 70 ? 'good' : (r.scores.wellness >= 50 ? 'warn' : 'danger')}" style="width:${r.scores.wellness}%"></div></div>
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <h3>🍽 Daily Macro Prescription</h3>
+        <div class="metric-row"><span class="metric-label">Calories</span><span class="metric-value">${r.macros.calories} kcal</span></div>
+        <div class="metric-row"><span class="metric-label">Protein</span><span class="metric-value">${r.macros.protein}g (${r.macros.proteinPerKg}g/kg)</span></div>
+        <div class="metric-row"><span class="metric-label">Carbohydrates</span><span class="metric-value">${r.macros.carbs}g (${r.macros.carbPercent}%)</span></div>
+        <div class="metric-row"><span class="metric-label">Fiber</span><span class="metric-value">${r.macros.fiber}g/day</span></div>
+        <div class="metric-row"><span class="metric-label">Fat</span><span class="metric-value">${r.macros.fat}g (${r.macros.fatPercent}%)</span></div>
+        <div class="metric-row"><span class="metric-label">Ghee Allowance</span><span class="metric-value">${r.macros.gheeTsp} tsp/day</span></div>
+        <div class="metric-row"><span class="metric-label">Water Target</span><span class="metric-value">${r.macros.waterL} Litres/day</span></div>
+      </div>
+
+      <div class="dash-card">
+        <h3>💊 Micronutrient Targets</h3>
+        <div class="micro-grid">
+          ${r.micros.map(m => `
+            <div class="micro-item">
+              <div class="micro-name">${m.name}</div>
+              <div class="micro-val">${m.target}</div>
+              <div class="micro-source">${m.source}</div>
+              <div style="font-size:0.7rem; margin-top:2px; color:${m.status === 'Deficient' || m.status === 'Critical' ? 'var(--accent)' : (m.status === 'Low' ? 'var(--warning)' : 'var(--success)')}; font-weight:600;">${m.status}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <h3>⚠️ Risk Flags</h3>
+        ${r.flags.obesity ? '<div class="metric-row"><span class="metric-label">Central Obesity</span><span class="metric-value danger">ACTIVE</span></div>' : ''}
+        ${r.flags.diabetes ? '<div class="metric-row"><span class="metric-label">Diabetes</span><span class="metric-value danger">ACTIVE</span></div>' : ''}
+        ${r.flags.bp ? '<div class="metric-row"><span class="metric-label">Hypertension</span><span class="metric-value danger">ACTIVE</span></div>' : ''}
+        ${r.flags.liver ? '<div class="metric-row"><span class="metric-label">Fatty Liver</span><span class="metric-value danger">ACTIVE</span></div>' : ''}
+        ${r.flags.heart ? '<div class="metric-row"><span class="metric-label">Heart Disease</span><span class="metric-value danger">ACTIVE</span></div>' : ''}
+        ${r.flags.kidney ? '<div class="metric-row"><span class="metric-label">Kidney Disease</span><span class="metric-value danger">ACTIVE</span></div>' : ''}
+        ${r.flags.thyroid ? '<div class="metric-row"><span class="metric-label">Thyroid</span><span class="metric-value warn">ACTIVE</span></div>' : ''}
+        ${r.flags.pcos ? '<div class="metric-row"><span class="metric-label">PCOS</span><span class="metric-value warn">ACTIVE</span></div>' : ''}
+        ${r.flags.anemia ? '<div class="metric-row"><span class="metric-label">Anemia</span><span class="metric-value warn">ACTIVE</span></div>' : ''}
+        ${r.flags.osteoporosis ? '<div class="metric-row"><span class="metric-label">Osteoporosis</span><span class="metric-value warn">ACTIVE</span></div>' : ''}
+        ${r.sugarTotal > 40 ? '<div class="metric-row"><span class="metric-label">High Sugar Intake</span><span class="metric-value danger">' + r.sugarTotal + 'g/day</span></div>' : ''}
+        ${r.alcohol === 'yes' ? '<div class="metric-row"><span class="metric-label">Alcohol</span><span class="metric-value warn">Active</span></div>' : ''}
+        ${r.sleep < 6 ? '<div class="metric-row"><span class="metric-label">Sleep Deprivation</span><span class="metric-value warn">' + r.sleep + ' hrs</span></div>' : ''}
+        ${!r.flags.obesity && !r.flags.diabetes && !r.flags.bp && !r.flags.liver && !r.flags.heart && !r.flags.kidney && r.sugarTotal <= 40 && r.alcohol !== 'yes' && r.sleep >= 6 ? '<div style="text-align:center; padding:16px; color:var(--success); font-weight:500;">✅ No major disease flags. Prevention protocol active.</div>' : ''}
+      </div>
+    </div>
+
+    <div class="prescription-box">
+      <h3>📝 ${r.name}'s Personal D2D Prescription</h3>
+      <div class="rx-grid">
+        <div class="rx-item"><div class="rx-title">Basket Tier</div><div class="rx-val">${r.basketTier}</div></div>
+        <div class="rx-item"><div class="rx-title">Monthly Price</div><div class="rx-val">₹${r.basketPrice.toLocaleString()}</div></div>
+        <div class="rx-item"><div class="rx-title">Protein Target</div><div class="rx-val">${r.macros.protein}g/day</div></div>
+        <div class="rx-item"><div class="rx-title">Carb Target</div><div class="rx-val">${r.macros.carbs}g/day</div></div>
+        <div class="rx-item"><div class="rx-title">Fiber Target</div><div class="rx-val">${r.macros.fiber}g/day</div></div>
+        <div class="rx-item"><div class="rx-title">Follow-Up</div><div class="rx-val">Month 3 & Month 6</div></div>
+      </div>
+      <div style="margin-top:16px;">
+        <h4 style="color:var(--primary); font-size:0.9rem; margin-bottom:10px;">Assigned Add-On Sachets</h4>
+        ${r.addons.length > 0 ? r.addons.map(a => `
+          <div style="display:flex; gap:12px; align-items:center; padding:7px 0; border-bottom:1px solid #e8f5e9;">
+            <span style="background:var(--primary); color:white; padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600;">${a.code}</span>
+            <span style="font-weight:500; font-size:0.85rem;">${a.name}</span>
+            <span style="color:var(--text-secondary); font-size:0.78rem;">${a.dose}</span>
+            <span style="color:var(--primary); font-size:0.76rem; font-style:italic;">${a.reason}</span>
+          </div>
+        `).join('') : '<p style="color:var(--text-secondary); font-size:0.84rem;">No individual add-ons needed. Common basket covers all requirements.</p>'}
+      </div>
+      <div style="margin-top:16px;">
+        <h4 style="color:var(--primary); font-size:0.9rem; margin-bottom:10px;">Non-Negotiable Behavior Rules</h4>
+        <ul class="behavior-list">
+          ${r.behaviors.map(b => `<li>${b}</li>`).join('')}
+        </ul>
+      </div>
+    </div>
+
+    <div style="margin-top:20px; padding:16px; background:var(--info-bg); border-radius:var(--radius); border-left:4px solid var(--info);">
+      <strong style="color:var(--info);">Nutritionist Notes for ${r.name}:</strong>
+      <p style="font-size:0.84rem; color:var(--text-secondary); margin-top:6px;">
+        ${r.classification.includes('Plus') ? 'This member requires D2D Plus intensive monitoring. Monthly nutritionist calls recommended.' : 'Standard protocol with 6-month review. Monthly calls optional for motivation.'}
+        ${r.alcohol === 'yes' ? ' Alcohol harm-reduction protocol active. Quarterly SGPT monitoring advised.' : ''}
+        ${r.sugarTotal > 40 ? ' Sugar reduction ladder initiated. Target <25g/day within 8 weeks.' : ''}
+        ${r.flags.kidney ? ' Nephrologist coordination required before protocol start.' : ''}
+        ${r.flags.heart ? ' Cardiologist clearance advised before intensive exercise.' : ''}
+        ${r.flags.pcos ? ' Gynecologist report recommended for baseline hormonal profile.' : ''}
+      </p>
+    </div>
+
+    <div style="margin-top:20px;">
+      <h3 style="color:var(--primary); font-size:1rem; margin-bottom:12px;">📋 ${r.name}'s Daily Meal Plan</h3>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:12px;">
+        <div class="meal-card">
+          <h4>🌅 Breakfast (${r.mealPlan.breakfast.reduce((s,item) => s + parseInt(item.protein), 0)}g protein)</h4>
+          ${r.mealPlan.breakfast.map(item => `
+            <div class="meal-item"><span>${item.item}</span><span style="color:var(--text-secondary); font-size:0.78rem;">${item.qty} | ${item.protein}P ${item.carb}C</span></div>
+          `).join('')}
+        </div>
+        <div class="meal-card">
+          <h4>☀️ Lunch (${r.mealPlan.lunch.reduce((s,item) => s + parseInt(item.protein), 0)}g protein)</h4>
+          ${r.mealPlan.lunch.map(item => `
+            <div class="meal-item"><span>${item.item}</span><span style="color:var(--text-secondary); font-size:0.78rem;">${item.qty} | ${item.protein}P ${item.carb}C</span></div>
+          `).join('')}
+        </div>
+        <div class="meal-card">
+          <h4>🌙 Dinner (${r.mealPlan.dinner.reduce((s,item) => s + parseInt(item.protein), 0)}g protein)</h4>
+          ${r.mealPlan.dinner.map(item => `
+            <div class="meal-item"><span>${item.item}</span><span style="color:var(--text-secondary); font-size:0.78rem;">${item.qty} | ${item.protein}P ${item.carb}C</span></div>
+          `).join('')}
+        </div>
+        <div class="meal-card">
+          <h4>🥜 Snacks (${r.mealPlan.snacks.reduce((s,item) => s + parseInt(item.protein), 0)}g protein)</h4>
+          ${r.mealPlan.snacks.map(item => `
+            <div class="meal-item"><span>${item.item}</span><span style="color:var(--text-secondary); font-size:0.78rem;">${item.qty} | ${item.protein}P ${item.carb}C</span></div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+    `;
+  });
+
+  document.getElementById('memberDashboards').innerHTML = memberHTML;
+
+  document.getElementById('questionnaireForm').style.display = 'none';
+  document.getElementById('resultsDashboard').style.display = 'block';
+  window.scrollTo(0,0);
+}
+
+function goBack() {
+  document.getElementById('resultsDashboard').style.display = 'none';
+  document.getElementById('questionnaireForm').style.display = 'block';
+  window.scrollTo(0,0);
+}
+</script>
+
+</body>
+</html>
